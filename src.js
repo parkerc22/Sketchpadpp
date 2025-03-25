@@ -1,6 +1,6 @@
 window.alert("ATTENTION\n thank you for your attention");
 const canvas = document.getElementById("myCanvas");
-    const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 
     canvas.addEventListener("click", function(event) {
       window.alert("ATTENTION\n thank you for your attention");
