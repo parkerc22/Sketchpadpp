@@ -1,4 +1,4 @@
-window.alert("ATTENTION\n thank you for your attention");
+window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
 
