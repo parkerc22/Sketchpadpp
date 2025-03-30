@@ -12,8 +12,8 @@ class Line {
   draw(ctx) {
     // Start a new Path
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(300, 150);
+    ctx.moveTo(this.x1, this.y1);
+    ctx.lineTo(this.x2, this.y2);
 
     // Draw the Path
     ctx.stroke();
