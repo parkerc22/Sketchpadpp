@@ -92,7 +92,10 @@ canvas.addEventListener("click", function(event) {
         //if not, then we need to set the radius of the most recent circle.
         c = circles[circles.length-1];
         c.r = dist(x, y, c.x, c.y);
-        c.d1 = Math.asin((y-c.y)/c.r);
+        c.d1 = Math.atan((y-c.y)/(x-c.x));
+        if (x-c.x < 0) {
+          c.d1 += Math.PI;
+        }
         c.d2 = c.d1;
         c.radSet = true;
       }
@@ -125,7 +128,10 @@ canvas.addEventListener("mousemove", function(event) {
       c = circles[circles.length-1];
       if (c.radSet) {
         //if radius is set, then move around the arc lengths
-        c.d2 = Math.asin((event.offsetY-c.y)/c.r);
+        c.d2 = Math.atan((event.offsetY-c.y)/(event.offsetX-c.x));
+        if (event.offsetX-c.x < 0) {
+          c.d2 += Math.PI;
+        }
       }
       c.draw(ctx);
     }
