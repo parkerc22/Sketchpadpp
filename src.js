@@ -1,6 +1,7 @@
 window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
+canvas.focus();
 isDrawing = false;
 drawCircle = true;
 drawLine = false;
@@ -20,6 +21,7 @@ class Line {
     this.y1 = _y1;
     this.x2 = _x2;
     this.y2 = _y2;
+    this.isFinished = false;
   }
   draw(ctx) {
     // Start a new Path
@@ -39,11 +41,11 @@ class Circle {
     this.d1 = _d1;
     this.d2 = _d2;
     this.radSet = false;
+    this.isFinished = false;
   }
   draw(ctx) {
     // Start a new Path
     if (this.radSet) {
-      console.log("drawing real circle");
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.r, this.d1, this.d2);
 
@@ -70,27 +72,27 @@ canvas.addEventListener("click", function(event) {
     lines.push(l);
     isDrawing = true;
   } else if (drawLine && isDrawing) {
+    lines[lines.length-1].isFinished = true;
     isDrawing = false;
   }
   if (drawCircle) {
-    if (circles.length == 0 && !isDrawing) {
+    if (circles.length == 0) {
       c = new Circle(x,y,0,0,0);
       circles.push(c);
       isDrawing = true;
-    } else if (circles[circles.length-1].radSet == true && !isDrawing) {
+    } else if (circles[circles.length-1].isFinished == true) {
       c = new Circle(x,y,0,0,0);
       circles.push(c);
       isDrawing = true;
-    } else if (isDrawing && circles[circles.length-1].radSet == true) {
+    } else if (circles[circles.length-1].isFinished == false && circles[circles.length-1].radSet == true) {
+      circles[circles.length-1].isFinished = true;
       isDrawing = false;
     } else {
       if(isDrawing) {
         //if not, then we need to set the radius of the most recent circle.
         c = circles[circles.length-1];
         c.r = dist(x, y, c.x, c.y);
-        console.log(c.r);
         c.d1 = Math.asin((y-c.y)/c.r);
-        console.log(c.d1);
         c.d2 = c.d1;
         c.radSet = true;
       }
@@ -104,11 +106,15 @@ canvas.addEventListener("mousemove", function(event) {
   if (isDrawing) {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (i = 0; i < lines.length-1; i++) {
-      lines[i].draw(ctx);
+    for (i = 0; i < lines.length; i++) {
+      if (lines[i].isFinished) {
+        lines[i].draw(ctx);
+      }
     }
-    for (c = 0; c < circles.length-1; c++) {
-      circles[i].draw(ctx);
+    for (c = 0; c < circles.length; c++) {
+      if(circles[c].isFinished) {
+        circles[c].draw(ctx);
+      }
     }
     if (drawLine) {
       l = lines[lines.length-1];
@@ -136,11 +142,31 @@ canvas.addEventListener("keydown", function(event) {
     drawLine = false;
     isDrawing = false;
     //also interrupt whatever is in progress
+    if (lines.length > 0) {
+      if (lines[lines.length-1].isFinished == false) {
+        lines.pop()
+      }
+    }
+    if (circles.length > 0) {
+      if (circles[circles.length-1].isFinished == false) {
+        circles.pop()
+      }
+    }
   }
   else if (key==="l") {
     drawCircle = false;
     drawLine = true;
     isDrawing = false;
     //also interrupt whatever is in progress
+    if (lines.length > 0) {
+      if (lines[lines.length-1].isFinished == false) {
+        lines.pop();
+      }
+    }
+    if (circles.length > 0) {
+      if (circles[circles.length-1].isFinished == false) {
+        circles.pop();
+      }
+    }
   }
 });
