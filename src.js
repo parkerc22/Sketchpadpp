@@ -33,10 +33,13 @@ l = new Line(0,0,0,0);
         l.x2 = x;
         l.y2 = y;
         isDrawing = true;
+      } else {
+        isDrawing = false;
       }
     });
     canvas.addEventListener("mousemove", function(event) {
       if (isDrawing) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         l.x2 = event.offsetX;
         l.y2 = event.offsetY;
         l.draw(ctx);
