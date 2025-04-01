@@ -12,6 +12,10 @@ canvas.focus();
 isDrawing = false;
 drawCircle = true;
 drawLine = false;
+mx = 0;
+var WIDTH = 800;
+var HEIGHT = 800;
+my = 0;
 //the coordinate transformation to map from coordinates to pixels (scale and then offset)
 windowTransform = {Xscale: 1.0, Yscale: 1.0, Xoffset: 0.0, Yoffset: 0.0}
 //line by default
@@ -150,6 +154,8 @@ canvas.addEventListener("click", function(event) {
 });
 
 canvas.addEventListener("mousemove", function(event) {
+  mx = event.offsetX;
+  my = event.offsetY;
   const coord = pixToCoord(event.offsetX, event.offsetY, windowTransform);
   x = coord[0];
   y = coord[1];
@@ -214,14 +220,53 @@ canvas.addEventListener("keydown", function(event) {
   }
   else if (key === "a"){
     //zoom in
-    windowTransform.Xscale *= 1.1;
-    windowTransform.Yscale *= 1.1;
+    //relative to mouse position, whose pix are stored in mx and my
+    var Xzoom = 1.02;
+    var Yzoom = 1.02;
+    
+    var c = pixToCoord(mx, my, windowTransform);
+    
+    //new center coordinates
+    var cx = c[0];
+    var cy = c[1];
+
+    //new total height/width of coord window
+    var cwidth = WIDTH/windowTransform.Xscale;
+    var cheight = HEIGHT/windowTransform.Yscale;
+
+    //this needs to get mapped to 0
+    //windowTransform.Xoffset = -cornerX*windowTransform.Xscale;
+    //windowTransform.Yoffset = -cornerY*windowTransform.Yscale;
+    windowTransform.Xscale *= Xzoom;
+    windowTransform.Yscale *= Yzoom;
+    windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
+    windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
+    
     drawDisplay(ctx, canvas, lines, circles);
   }
   else if (key === "s") {
     //zoom out
-    windowTransform.Xscale /= 1.1;
-    windowTransform.Yscale /= 1.1;
+    var Xzoom = 1/1.02;
+    var Yzoom = 1/1.02;
+    
+    var c = pixToCoord(mx, my, windowTransform);
+    
+    //new center coordinates
+    var cx = c[0];
+    var cy = c[1];
+
+    //new total height/width of coord window
+    var cwidth = WIDTH/windowTransform.Xscale;
+    var cheight = HEIGHT/windowTransform.Yscale;
+
+    //this needs to get mapped to 0
+    //windowTransform.Xoffset = -cornerX*windowTransform.Xscale;
+    //windowTransform.Yoffset = -cornerY*windowTransform.Yscale;
+    windowTransform.Xscale *= Xzoom;
+    windowTransform.Yscale *= Yzoom;
+    windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
+    windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
+    
     drawDisplay(ctx, canvas, lines, circles);
   }
 });
