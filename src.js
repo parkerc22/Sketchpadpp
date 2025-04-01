@@ -5,7 +5,7 @@
 //create ability to link
 //create ability to move
 
-window.alert("click in the box");
+//window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
 canvas.focus();
@@ -14,6 +14,7 @@ drawCircle = true;
 drawLine = false;
 mx = 0;
 var WIDTH = 800;
+snapRadius = 10; //this radius is in pixels
 var HEIGHT = 800;
 my = 0;
 //the coordinate transformation to map from coordinates to pixels (scale and then offset)
@@ -55,6 +56,22 @@ function drawDisplay(ctx, canvas, lines, circles) {
         circles[c].draw(ctx);
       }
     }
+}
+
+function snapCoords(x, y, lines, circles, windowTransform, snapRadius) {
+  var Xout = x;
+  var Yout = y;
+  for (i = 0; i < lines.length; i++) {
+    if (distToPix(dist(x, y, lines[i].x1, lines[i].y1), windowTransform) < snapRadius && lines[i].isFinished) {
+      Xout = lines[i].x1;
+      Yout = lines[i].y1;
+    }
+    if (distToPix(dist(x, y, lines[i].x2, lines[i].y2), windowTransform) < snapRadius && lines[i].isFinished) {
+      Xout = lines[i].x2;
+      Yout = lines[i].y2;
+    }
+  }
+  return [Xout, Yout];
 }
 //---------OBJECTS-------------------------------------------------------
 
@@ -116,12 +133,22 @@ canvas.addEventListener("click", function(event) {
   x = coord[0];
   y = coord[1];
 
+
+  //Before anything, check if we should snap to another component on the grid (do not check itself)
+
+
+  snappedCoords = snapCoords(x, y, lines, circles, windowTransform, snapRadius);
+  x = snappedCoords[0];
+  y = snappedCoords[1];
+
   if (drawLine && !isDrawing) {
     l = new Line(x,y,x,y);
     lines.push(l);
     isDrawing = true;
   } else if (drawLine && isDrawing) {
     lines[lines.length-1].isFinished = true;
+    lines[lines.length-1].x2 = x;
+    lines[lines.length-1].y2 = y;
     isDrawing = false;
   }
   if (drawCircle) {
@@ -150,6 +177,8 @@ canvas.addEventListener("click", function(event) {
       }
     }
   }
+  drawDisplay(ctx, canvas, lines, circles);
+
 
 });
 
