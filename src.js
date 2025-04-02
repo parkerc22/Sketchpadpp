@@ -14,10 +14,14 @@ canvas.focus();
 isDrawing = false;
 drawCircle = true;
 drawLine = false;
+moving = false;
+raw_mx = 0;
 mx = 0;
 var WIDTH = 800;
 snapRadius = 20; //this radius is in pixels
+moveRadius = 20; //this radius is in pixels
 var HEIGHT = 800;
+raw_my = 0;
 my = 0;
 //the coordinate transformation to map from coordinates to pixels (scale and then offset)
 windowTransform = {Xscale: 1.0, Yscale: 1.0, Xoffset: 0.0, Yoffset: 0.0}
@@ -59,7 +63,6 @@ function drawDisplay(ctx, canvas, points, lines, circles) {
     }
   }
   for (p = 0; p < points.length; p++) {
-    console.log("test");
     points[p].draw(ctx);
   }
 }
@@ -80,7 +83,7 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
 
   for (p = 0; p < points.length; p++) {
     pt = points[p]
-    if (distToPix(dist(x, y, pt.x, pt.y), windowTransform) < snapRadius) {
+    if (distToPix(dist(x, y, pt.x, pt.y), windowTransform) < snapRadius && !points[p].beingMoved) {
       Xout = pt.x;
       Yout = pt.y;
     }
@@ -107,7 +110,7 @@ function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
 
   for (p = 0; p < points.length; p++) {
     var coord = coordToPix(points[p].x, points[p].y, windowTransform);
-    if (dist(x, y, coord[0], coord[1]) < snapRadius) {
+    if (dist(x, y, coord[0], coord[1]) < snapRadius && !points[p].beingMoved) {
       Xout = coord[0];
       Yout = coord[1];
     }
@@ -122,6 +125,7 @@ class Point {
     this.x = _x;
     this.y = _y;
     this.lines = [];
+    this.beingMoved = false;
   }
   draw(ctx) {
     var pix1 = coordToPix(this.x, this.y, windowTransform);
@@ -187,11 +191,14 @@ class Circle {
 points = [];
 lines = [];
 circles = [];
+movingPoint = new Point(0,0);
 
 //assume just line tool for now
 canvas.addEventListener("click", function(event) {
   mx = event.offsetX;
   my = event.offsetY;
+  raw_mx = mx;
+  raw_my = my;
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
 
@@ -205,7 +212,10 @@ canvas.addEventListener("click", function(event) {
   //Before anything, check if we should snap to another component on the grid (do not check itself)
 
 
-
+ if (moving) {
+  moving = false;
+  movePoint.beingMoved = false;
+ }
  if (drawLine && isDrawing) {
     l = lines[lines.length-1];
     l.isFinished = true;
@@ -242,6 +252,8 @@ canvas.addEventListener("click", function(event) {
 canvas.addEventListener("mousemove", function(event) {
   mx = event.offsetX;
   my = event.offsetY;
+  raw_mx = mx;
+  raw_my = my;
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
 
@@ -273,6 +285,9 @@ canvas.addEventListener("mousemove", function(event) {
       }
       c.draw(ctx);
     }
+  } else if (moving) {
+    movePoint.x = x;
+    movePoint.y = y;
   }
 
 
@@ -299,6 +314,25 @@ canvas.addEventListener("keydown", function(event) {
     l = new Line(p, q);
     lines.push(l);
     isDrawing = true;
+  } else if (key === "m") {
+    //find closest point to current cursor among points that are within moveRadius dist
+    var best = new Point(0,0);
+    var bestDist = 100000;
+    for (p = 0; p < points.length; p++) {
+      var coord = coordToPix(points[p].x, points[p].y, windowTransform);
+      var d = dist(raw_mx, raw_my, coord[0], coord[1]);
+      if (d < Math.min(moveRadius, bestDist)) {
+        best = points[p];
+        bestDist = d;
+      }
+    }
+
+    if (bestDist < 100000) {
+      moving = true;
+      movePoint = best;
+      movePoint.beingMoved = true;
+    }
+
   }
     
   else if (key === "a"){
