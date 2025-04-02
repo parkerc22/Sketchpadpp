@@ -7,6 +7,8 @@
 
 //window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
+canvas.style.cursor = "none";
+
 const ctx = canvas.getContext("2d");
 canvas.focus();
 isDrawing = false;
@@ -62,31 +64,65 @@ function snapCoords(x, y, lines, circles, windowTransform, snapRadius) {
   var Xout = x;
   var Yout = y;
   for (i = 0; i < lines.length; i++) {
-    if (distToPix(dist(x, y, lines[i].x1, lines[i].y1), windowTransform) < snapRadius && lines[i].isFinished) {
-      Xout = lines[i].x1;
-      Yout = lines[i].y1;
+    if (distToPix(dist(x, y, lines[i].endpoints[0].x, lines[i].endpoints[0].y), windowTransform) < snapRadius && lines[i].isFinished) {
+      Xout = lines[i].endpoints[0].x;
+      Yout = lines[i].endpoints[0].y;
     }
-    if (distToPix(dist(x, y, lines[i].x2, lines[i].y2), windowTransform) < snapRadius && lines[i].isFinished) {
-      Xout = lines[i].x2;
-      Yout = lines[i].y2;
+    if (distToPix(dist(x, y, lines[i].endpoints[1].x, lines[i].endpoints[1].y), windowTransform) < snapRadius && lines[i].isFinished) {
+      Xout = lines[i].endpoints[1].x;
+      Yout = lines[i].endpoints[1].xy;
+    }
+  }
+  return [Xout, Yout];
+}
+
+function snapPix(x, y, lines, circles, windowTransform, snapRadius) {
+  var Xout = x;
+  var Yout = y;
+  for (i = 0; i < lines.length; i++) {
+    var endpt1 = coordToPix(lines[i].endpoints[0].x, lines[i].endpoints[0].y, windowTransform);
+    if (dist(x, y, endpt1[0], endpt1[1]) < snapRadius && lines[i].isFinished) {
+      Xout = endpt1[0];
+      Yout = endpt1[1];
+    }
+    var endpt2 = coordToPix(lines[i].endpoints[1].x, lines[i].endpoints[1].y, windowTransform);
+    if (dist(x, y, endpt2[0], endpt2[1]) < snapRadius && lines[i].isFinished) {
+      Xout = endpt2[0];
+      Yout = endpt2[1];
     }
   }
   return [Xout, Yout];
 }
 //---------OBJECTS-------------------------------------------------------
 
+class Point {
+  constructor(_x, _y) {
+    this.x = _x;
+    this.y = _y;
+    this.lines = [];
+  }
+  draw(ctx) {
+    ctx.fillRect(x-1,y-1,3,3)
+  }
+}
+
 class Line {
-  constructor(_x1, _y1, _x2, _y2) {
-    this.x1 = _x1;
-    this.y1 = _y1;
-    this.x2 = _x2;
-    this.y2 = _y2;
+ 
+  // construct with two Point objects
+  constructor (p, q) {
+    this.points = [];
+    this.endpoints = [];
+    this.endpoints.push(p);
+    this.endpoints.push(q);
+    this.points.push(p);
+    this.points.push(q);
     this.isFinished = false;
+
   }
   draw(ctx) {
     // Start a new Path
-    var pix1 = coordToPix(this.x1, this.y1, windowTransform);
-    var pix2 = coordToPix(this.x2, this.y2, windowTransform);
+    var pix1 = coordToPix(this.endpoints[0].x, this.endpoints[0].y, windowTransform);
+    var pix2 = coordToPix(this.endpoints[1].x, this.endpoints[1].y, windowTransform);
     ctx.beginPath();
     ctx.moveTo(pix1[0], pix1[1]);
     ctx.lineTo(pix2[0], pix2[1]);
@@ -124,12 +160,20 @@ class Circle {
   }
 }
 
+points = [];
 lines = [];
 circles = [];
 
 //assume just line tool for now
 canvas.addEventListener("click", function(event) {
-  const coord = pixToCoord(event.offsetX, event.offsetY, windowTransform);
+  mx = event.offsetX;
+  my = event.offsetY;
+  
+  snappedPix = snapPix(mx, my, lines, circles, windowTransform, snapRadius);
+
+  mx = snappedPix[0];
+  my = snappedPix[1];
+  const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
 
@@ -137,30 +181,23 @@ canvas.addEventListener("click", function(event) {
   //Before anything, check if we should snap to another component on the grid (do not check itself)
 
 
-  snappedCoords = snapCoords(x, y, lines, circles, windowTransform, snapRadius);
-  x = snappedCoords[0];
-  y = snappedCoords[1];
 
-  if (drawLine && !isDrawing) {
-    l = new Line(x,y,x,y);
-    lines.push(l);
-    isDrawing = true;
-  } else if (drawLine && isDrawing) {
+ if (drawLine && isDrawing) {
     lines[lines.length-1].isFinished = true;
-    lines[lines.length-1].x2 = x;
-    lines[lines.length-1].y2 = y;
+    lines[lines.length-1].endpoints[1].x = x;
+    lines[lines.length-1].endpoints[1].y = y;
     isDrawing = false;
   }
   if (drawCircle) {
-    if (circles.length == 0) {
-      c = new Circle(x,y,0,0,0);
-      circles.push(c);
-      isDrawing = true;
-    } else if (circles[circles.length-1].isFinished == true) {
-      c = new Circle(x,y,0,0,0);
-      circles.push(c);
-      isDrawing = true;
-    } else if (circles[circles.length-1].isFinished == false && circles[circles.length-1].radSet == true) {
+    // if (circles.length == 0) {
+    //   c = new Circle(x,y,0,0,0);
+    //   circles.push(c);
+    //   isDrawing = true;
+    // } else if (circles[circles.length-1].isFinished == true) {
+    //   c = new Circle(x,y,0,0,0);
+    //   circles.push(c);
+    //   isDrawing = true;
+    if (circles[circles.length-1].isFinished == false && circles[circles.length-1].radSet == true) {
       circles[circles.length-1].isFinished = true;
       isDrawing = false;
     } else {
@@ -185,16 +222,25 @@ canvas.addEventListener("click", function(event) {
 canvas.addEventListener("mousemove", function(event) {
   mx = event.offsetX;
   my = event.offsetY;
-  const coord = pixToCoord(event.offsetX, event.offsetY, windowTransform);
+  
+  snappedPix = snapPix(mx, my, lines, circles, windowTransform, snapRadius);
+
+  mx = snappedPix[0];
+  my = snappedPix[1];
+
+  const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
+  drawDisplay(ctx, canvas, lines, circles);
+
+  ctx.fillRect(mx-1,my-1,3,3)
+
   if (isDrawing) {
     
-    drawDisplay(ctx, canvas, lines, circles);
     if (drawLine) {
       l = lines[lines.length-1];
-      l.x2 = x;
-      l.y2 = y;
+      l.endpoints[1].x = x;
+      l.endpoints[1].y = y;
       l.draw(ctx);
     } else if (drawCircle) {
       c = circles[circles.length-1];
@@ -218,35 +264,21 @@ canvas.addEventListener("keydown", function(event) {
   if (key==="c") {
     drawCircle = true;
     drawLine = false;
-    isDrawing = false;
-    //also interrupt whatever is in progress
-    if (lines.length > 0) {
-      if (lines[lines.length-1].isFinished == false) {
-        lines.pop()
-      }
-    }
-    if (circles.length > 0) {
-      if (circles[circles.length-1].isFinished == false) {
-        circles.pop()
-      }
-    }
+    c = new Circle(x,y,0,0,0);
+    circles.push(c);
+    isDrawing = true;
   }
   else if (key==="l") {
     drawCircle = false;
     drawLine = true;
-    isDrawing = false;
-    //also interrupt whatever is in progress
-    if (lines.length > 0) {
-      if (lines[lines.length-1].isFinished == false) {
-        lines.pop();
-      }
-    }
-    if (circles.length > 0) {
-      if (circles[circles.length-1].isFinished == false) {
-        circles.pop();
-      }
-    }
+    p = new Point(x, y);
+    points.push(p);
+    q = new Point(x, y);
+    l = new Line(p, q);
+    lines.push(l);
+    isDrawing = true;
   }
+    
   else if (key === "a"){
     //zoom in
     //relative to mouse position, whose pix are stored in mx and my
