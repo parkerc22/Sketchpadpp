@@ -16,7 +16,7 @@ drawCircle = true;
 drawLine = false;
 mx = 0;
 var WIDTH = 800;
-snapRadius = 10; //this radius is in pixels
+snapRadius = 20; //this radius is in pixels
 var HEIGHT = 800;
 my = 0;
 //the coordinate transformation to map from coordinates to pixels (scale and then offset)
@@ -46,18 +46,22 @@ function distToPix(dist, transform) {
   return dist * transform.Xscale;
 }
 
-function drawDisplay(ctx, canvas, lines, circles) {
+function drawDisplay(ctx, canvas, points, lines, circles) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (i = 0; i < lines.length; i++) {
-      if (lines[i].isFinished) {
-        lines[i].draw(ctx);
-      }
+  for (i = 0; i < lines.length; i++) {
+    if (lines[i].isFinished) {
+      lines[i].draw(ctx);
     }
-    for (c = 0; c < circles.length; c++) {
-      if(circles[c].isFinished) {
-        circles[c].draw(ctx);
-      }
+  }
+  for (c = 0; c < circles.length; c++) {
+    if(circles[c].isFinished) {
+      circles[c].draw(ctx);
     }
+  }
+  for (p = 0; p < points.length; p++) {
+    console.log("test");
+    points[p].draw(ctx);
+  }
 }
 
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
@@ -88,18 +92,27 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
 function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
   var Xout = x;
   var Yout = y;
-  for (i = 0; i < lines.length; i++) {
-    var endpt1 = coordToPix(lines[i].endpoints[0].x, lines[i].endpoints[0].y, windowTransform);
-    if (dist(x, y, endpt1[0], endpt1[1]) < snapRadius && lines[i].isFinished) {
-      Xout = endpt1[0];
-      Yout = endpt1[1];
-    }
-    var endpt2 = coordToPix(lines[i].endpoints[1].x, lines[i].endpoints[1].y, windowTransform);
-    if (dist(x, y, endpt2[0], endpt2[1]) < snapRadius && lines[i].isFinished) {
-      Xout = endpt2[0];
-      Yout = endpt2[1];
+  // for (i = 0; i < lines.length; i++) {
+  //   var endpt1 = coordToPix(lines[i].endpoints[0].x, lines[i].endpoints[0].y, windowTransform);
+  //   if (dist(x, y, endpt1[0], endpt1[1]) < snapRadius && lines[i].isFinished) {
+  //     Xout = endpt1[0];
+  //     Yout = endpt1[1];
+  //   }
+  //   var endpt2 = coordToPix(lines[i].endpoints[1].x, lines[i].endpoints[1].y, windowTransform);
+  //   if (dist(x, y, endpt2[0], endpt2[1]) < snapRadius && lines[i].isFinished) {
+  //     Xout = endpt2[0];
+  //     Yout = endpt2[1];
+  //   }
+  // }
+
+  for (p = 0; p < points.length; p++) {
+    var coord = coordToPix(points[p].x, points[p].y, windowTransform);
+    if (dist(x, y, coord[0], coord[1]) < snapRadius) {
+      Xout = coord[0];
+      Yout = coord[1];
     }
   }
+
   return [Xout, Yout];
 }
 //---------OBJECTS-------------------------------------------------------
@@ -111,7 +124,9 @@ class Point {
     this.lines = [];
   }
   draw(ctx) {
-    ctx.fillRect(x-1,y-1,3,3)
+    var pix1 = coordToPix(this.x, this.y, windowTransform);
+
+    ctx.fillRect(pix1[0]-1,pix1[1]-1,3,3)
   }
 }
 
@@ -201,14 +216,7 @@ canvas.addEventListener("click", function(event) {
     isDrawing = false;
   }
   if (drawCircle) {
-    // if (circles.length == 0) {
-    //   c = new Circle(x,y,0,0,0);
-    //   circles.push(c);
-    //   isDrawing = true;
-    // } else if (circles[circles.length-1].isFinished == true) {
-    //   c = new Circle(x,y,0,0,0);
-    //   circles.push(c);
-    //   isDrawing = true;
+
     if (circles[circles.length-1].isFinished == false && circles[circles.length-1].radSet == true) {
       circles[circles.length-1].isFinished = true;
       isDrawing = false;
@@ -226,7 +234,7 @@ canvas.addEventListener("click", function(event) {
       }
     }
   }
-  drawDisplay(ctx, canvas, lines, circles);
+  drawDisplay(ctx, canvas, points, lines, circles);
 
 
 });
@@ -243,9 +251,9 @@ canvas.addEventListener("mousemove", function(event) {
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
-  drawDisplay(ctx, canvas, lines, circles);
+  drawDisplay(ctx, canvas, points, lines, circles);
 
-  ctx.fillRect(mx-1,my-1,3,3)
+  ctx.fillRect(mx-2,my-2,5,5)
 
   if (isDrawing) {
     
@@ -278,6 +286,8 @@ canvas.addEventListener("keydown", function(event) {
     drawLine = false;
     c = new Circle(x,y,0,0,0);
     circles.push(c);
+    p = new Point(x,y);
+    points.push(p);
     isDrawing = true;
   }
   else if (key==="l") {
@@ -315,7 +325,7 @@ canvas.addEventListener("keydown", function(event) {
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
     windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
     
-    drawDisplay(ctx, canvas, lines, circles);
+    drawDisplay(ctx, canvas, points, lines, circles);
   }
   else if (key === "s") {
     //zoom out
@@ -340,6 +350,6 @@ canvas.addEventListener("keydown", function(event) {
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
     windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
     
-    drawDisplay(ctx, canvas, lines, circles);
+    drawDisplay(ctx, canvas, points, lines, circles);
   }
 });
