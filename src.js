@@ -68,8 +68,7 @@ function drawDisplay(ctx, canvas, points, lines, circles) {
 }
 
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
-  var Xout = x;
-  var Yout = y;
+  var output = [null, null, null];
   // for (i = 0; i < lines.length; i++) {
   //   if (distToPix(dist(x, y, lines[i].endpoints[0].x, lines[i].endpoints[0].y), windowTransform) < snapRadius && lines[i].isFinished) {
   //     Xout = lines[i].endpoints[0].x;
@@ -84,17 +83,15 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   for (p = 0; p < points.length; p++) {
     pt = points[p]
     if (distToPix(dist(x, y, pt.x, pt.y), windowTransform) < snapRadius && !points[p].beingMoved) {
-      Xout = pt.x;
-      Yout = pt.y;
+      output[0] = pt;
     }
   }
 
-  return [Xout, Yout];
+  return output;
 }
 
 function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
-  var Xout = x;
-  var Yout = y;
+  var output = [null, null, null];
   // for (i = 0; i < lines.length; i++) {
   //   var endpt1 = coordToPix(lines[i].endpoints[0].x, lines[i].endpoints[0].y, windowTransform);
   //   if (dist(x, y, endpt1[0], endpt1[1]) < snapRadius && lines[i].isFinished) {
@@ -107,16 +104,13 @@ function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
   //     Yout = endpt2[1];
   //   }
   // }
-
   for (p = 0; p < points.length; p++) {
     var coord = coordToPix(points[p].x, points[p].y, windowTransform);
     if (dist(x, y, coord[0], coord[1]) < snapRadius && !points[p].beingMoved) {
-      Xout = coord[0];
-      Yout = coord[1];
+      output[0] = points[p];
     }
   }
-
-  return [Xout, Yout];
+  return output;
 }
 //---------OBJECTS-------------------------------------------------------
 
@@ -201,9 +195,11 @@ canvas.addEventListener("click", function(event) {
   raw_my = my;
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
-
-  mx = snappedPix[0];
-  my = snappedPix[1];
+  if (snappedPix[0] != null) {
+    var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform)
+    mx = t[0];
+    my = t[1];
+  }
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
@@ -219,9 +215,13 @@ canvas.addEventListener("click", function(event) {
  if (drawLine && isDrawing) {
     l = lines[lines.length-1];
     l.isFinished = true;
-    l.endpoints[1].x = x;
-    l.endpoints[1].y = y;
-    points.push(l.endpoints[1]);
+    if (snappedPix[0] != null && snappedPix[0]!==l.endpoints[0]) {
+      l.endpoints[1] = snappedPix[0];
+    } else {
+      l.endpoints[1].x = x;
+      l.endpoints[1].y = y;
+      points.push(l.endpoints[1]);
+    }
 
     isDrawing = false;
   }
@@ -256,9 +256,11 @@ canvas.addEventListener("mousemove", function(event) {
   raw_my = my;
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
-
-  mx = snappedPix[0];
-  my = snappedPix[1];
+  if (snappedPix[0] != null) {
+    var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform)
+    mx = t[0];
+    my = t[1];
+  }
 
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
@@ -296,6 +298,10 @@ canvas.addEventListener("mousemove", function(event) {
 
 canvas.addEventListener("keydown", function(event) {
   const key = event.key;
+  snappedPix = snapPix(raw_mx, raw_my, points, lines, circles, windowTransform, snapRadius);
+  coords = pixToCoord(raw_mx, raw_my, windowTransform);
+  x = coords[0];
+  y = coords[1];
   if (key==="c") {
     drawCircle = true;
     drawLine = false;
@@ -308,8 +314,13 @@ canvas.addEventListener("keydown", function(event) {
   else if (key==="l") {
     drawCircle = false;
     drawLine = true;
-    p = new Point(x, y);
-    points.push(p);
+    var p;
+    if (snappedPix[0] != null) {
+       p = snappedPix[0];
+    } else {
+      p = new Point(x, y);
+      points.push(p);
+    }
     q = new Point(x, y);
     l = new Line(p, q);
     lines.push(l);
