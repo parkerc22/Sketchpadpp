@@ -60,23 +60,32 @@ function drawDisplay(ctx, canvas, lines, circles) {
     }
 }
 
-function snapCoords(x, y, lines, circles, windowTransform, snapRadius) {
+function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   var Xout = x;
   var Yout = y;
-  for (i = 0; i < lines.length; i++) {
-    if (distToPix(dist(x, y, lines[i].endpoints[0].x, lines[i].endpoints[0].y), windowTransform) < snapRadius && lines[i].isFinished) {
-      Xout = lines[i].endpoints[0].x;
-      Yout = lines[i].endpoints[0].y;
-    }
-    if (distToPix(dist(x, y, lines[i].endpoints[1].x, lines[i].endpoints[1].y), windowTransform) < snapRadius && lines[i].isFinished) {
-      Xout = lines[i].endpoints[1].x;
-      Yout = lines[i].endpoints[1].xy;
+  // for (i = 0; i < lines.length; i++) {
+  //   if (distToPix(dist(x, y, lines[i].endpoints[0].x, lines[i].endpoints[0].y), windowTransform) < snapRadius && lines[i].isFinished) {
+  //     Xout = lines[i].endpoints[0].x;
+  //     Yout = lines[i].endpoints[0].y;
+  //   }
+  //   if (distToPix(dist(x, y, lines[i].endpoints[1].x, lines[i].endpoints[1].y), windowTransform) < snapRadius && lines[i].isFinished) {
+  //     Xout = lines[i].endpoints[1].x;
+  //     Yout = lines[i].endpoints[1].xy;
+  //   }
+  // }
+
+  for (p = 0; p < points.length; p++) {
+    pt = points[p]
+    if (distToPix(dist(x, y, pt.x, pt.y), windowTransform) < snapRadius) {
+      Xout = pt.x;
+      Yout = pt.y;
     }
   }
+
   return [Xout, Yout];
 }
 
-function snapPix(x, y, lines, circles, windowTransform, snapRadius) {
+function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
   var Xout = x;
   var Yout = y;
   for (i = 0; i < lines.length; i++) {
@@ -169,7 +178,7 @@ canvas.addEventListener("click", function(event) {
   mx = event.offsetX;
   my = event.offsetY;
   
-  snappedPix = snapPix(mx, my, lines, circles, windowTransform, snapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
 
   mx = snappedPix[0];
   my = snappedPix[1];
@@ -183,9 +192,12 @@ canvas.addEventListener("click", function(event) {
 
 
  if (drawLine && isDrawing) {
-    lines[lines.length-1].isFinished = true;
-    lines[lines.length-1].endpoints[1].x = x;
-    lines[lines.length-1].endpoints[1].y = y;
+    l = lines[lines.length-1];
+    l.isFinished = true;
+    l.endpoints[1].x = x;
+    l.endpoints[1].y = y;
+    points.push(l.endpoints[1]);
+
     isDrawing = false;
   }
   if (drawCircle) {
@@ -223,7 +235,7 @@ canvas.addEventListener("mousemove", function(event) {
   mx = event.offsetX;
   my = event.offsetY;
   
-  snappedPix = snapPix(mx, my, lines, circles, windowTransform, snapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
 
   mx = snappedPix[0];
   my = snappedPix[1];
