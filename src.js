@@ -3,6 +3,7 @@
 //moving circle center should try to keep endpoints but change radii
 
 //Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
+//Enforce this distance constraint even while moving points!!!! 
 
 //points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
 
@@ -19,7 +20,8 @@ moving = false;
 raw_mx = 0;
 mx = 0;
 var WIDTH = 800;
-snapRadius = 20; //this radius is in pixels
+pointSnapRadius = 20; //this radius is in pixels
+circleSnapRadius = 17; //this radius is also in pixels
 moveRadius = 20; //this radius is in pixels
 var HEIGHT = 800;
 raw_my = 0;
@@ -70,6 +72,8 @@ function drawDisplay(ctx, canvas, points, lines, circles) {
 
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   var output = [null, null, null];
+  //point, line, circle
+
   // for (i = 0; i < lines.length; i++) {
   //   if (distToPix(dist(x, y, lines[i].endpoints[0].x, lines[i].endpoints[0].y), windowTransform) < snapRadius && lines[i].isFinished) {
   //     Xout = lines[i].endpoints[0].x;
@@ -87,12 +91,13 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
       output[0] = pt;
     }
   }
-
   return output;
 }
 
-function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
+function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius) {
   var output = [null, null, null];
+  //point, line, circle
+
   // for (i = 0; i < lines.length; i++) {
   //   var endpt1 = coordToPix(lines[i].endpoints[0].x, lines[i].endpoints[0].y, windowTransform);
   //   if (dist(x, y, endpt1[0], endpt1[1]) < snapRadius && lines[i].isFinished) {
@@ -107,10 +112,41 @@ function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
   // }
   for (p = 0; p < points.length; p++) {
     var coord = coordToPix(points[p].x, points[p].y, windowTransform);
-    if (dist(x, y, coord[0], coord[1]) < snapRadius && !points[p].beingMoved) {
+    if (dist(x, y, coord[0], coord[1]) < pointSnapRadius && !points[p].beingMoved) {
       output[0] = points[p];
     }
   }
+
+  for (j = 0; j < circles.length; j++) {
+    c = circles[j];
+    var coord = coordToPix(c.center.x, c.center.y, windowTransform);
+    if (Math.abs(dist(x, y, coord[0], coord[1]) - distToPix(c.r, windowTransform)) < circleSnapRadius) {
+      //then, check that the coordinates lie between the endpoints! 
+      var d1 = Math.atan((c.endpoints[0].y-c.center.y)/(c.endpoints[0].x-c.center.x));
+      if (c.endpoints[0].x-c.center.x < 0) {
+        d1 += Math.PI;
+      }
+
+      var d2 = Math.atan((c.endpoints[1].y-c.center.y)/(c.endpoints[1].x-c.center.x));
+      if (c.endpoints[1].x-c.center.x < 0) {
+        d2 += Math.PI;
+      }
+
+      var pt = pixToCoord(x, y, windowTransform);
+      var angle = Math.atan((pt[1]-c.center.y)/(pt[0]-c.center.x));
+      if (pt[0]-c.center.x < 0) {
+        angle += Math.PI;
+      }
+      console.log(d1);
+      console.log(d2);
+      console.log(angle);
+      console.log("-----");
+      if (d1 < angle || angle < d2) {
+        output[2] = c;
+      }
+    } 
+  }
+
   return output;
 }
 //---------OBJECTS-------------------------------------------------------
@@ -184,6 +220,7 @@ class Circle {
     this.center = _center;
     this.points = [];
     this.endpoints = [];
+    this.constraints = [];
   }
   draw(ctx) {
     // Start a new Path
@@ -214,9 +251,30 @@ class Circle {
   }
 }
 
+class DistanceConstraint {
+
+  //distance constraints have two points, with different roles
+  //the ANCHOR will never move due to a distance constraint (usually the center of a circle)
+  //the FLOATER will always move to satisfy a distance constraint (usually a point unbound to any circles)
+  constructor(p1, p2, dist) {
+    this.anchor = p1;
+    this.floater = p2;
+    this.dist = dist;
+  }
+
+}
+  
+
+
+
+//------------------------------------------------------------------------------------------------------------------------
+//-----------------------------END OBJECT DECLARATIONS--------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------
+
 points = [];
 lines = [];
 circles = [];
+constraints = [];
 movingPoint = new Point(0,0);
 
 //assume just line tool for now
@@ -226,7 +284,7 @@ canvas.addEventListener("click", function(event) {
   raw_mx = mx;
   raw_my = my;
   
-  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
   if (snappedPix[0] != null) {
     var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform)
     mx = t[0];
@@ -288,7 +346,16 @@ canvas.addEventListener("click", function(event) {
     l.isFinished = true;
     if (snappedPix[0] != null && snappedPix[0]!==l.endpoints[0]) {
       l.endpoints[1] = snappedPix[0];
-    } else {
+    } else if (snappedPix[2] != null) {
+      var c = snappedPix[2];
+
+      var d = dist(c.center.x, c.center.y, coord[0], coord[1]);
+
+      l.endpoints[1].x = c.center.x + c.r/d * (coord[0]-c.center.x);
+      l.endpoints[1].y = c.center.y + c.r/d * (coord[1]-c.center.y);
+      points.push(l.endpoints[1]);
+    } 
+    else {
       l.endpoints[1].x = x;
       l.endpoints[1].y = y;
       points.push(l.endpoints[1]);
@@ -331,11 +398,22 @@ canvas.addEventListener("mousemove", function(event) {
   raw_mx = mx;
   raw_my = my;
   
-  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, snapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
   if (snappedPix[0] != null) {
-    var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform)
+    var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform);
     mx = t[0];
     my = t[1];
+  } else if (snappedPix[2] != null) {
+    //this means we snapped to a circle!
+    //compute what our radial position would be along this circle;
+    var c = snappedPix[2];
+    var center = coordToPix(c.center.x, c.center.y, windowTransform);
+
+    var d = dist(center[0], center[1], mx, my);
+    var r = distToPix(c.r, windowTransform);
+
+    mx = center[0] + r/d * (mx-center[0]);
+    my = center[1] + r/d * (my-center[1]);
   }
 
   const coord = pixToCoord(mx, my, windowTransform);
@@ -380,7 +458,7 @@ canvas.addEventListener("mousemove", function(event) {
 
 canvas.addEventListener("keydown", function(event) {
   const key = event.key;
-  snappedPix = snapPix(raw_mx, raw_my, points, lines, circles, windowTransform, snapRadius);
+  snappedPix = snapPix(raw_mx, raw_my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
   coords = pixToCoord(raw_mx, raw_my, windowTransform);
   x = coords[0];
   y = coords[1];
@@ -404,7 +482,19 @@ canvas.addEventListener("keydown", function(event) {
     var p;
     if (snappedPix[0] != null) {
        p = snappedPix[0];
-    } else {
+    } else if (snappedPix[2] != null) {
+      //then map it to the circle;
+      //this should really come with a constraint that maintains it
+      var c = snappedPix[2];
+
+      var d = dist(c.center.x, c.center.y, coords[0], coords[1]);
+
+      temp_x = c.center.x + c.r/d * (coords[0]-c.center.x);
+      temp_y = c.center.y + c.r/d * (coords[1]-c.center.y);
+      p = new Point(temp_x, temp_y);
+      points.push(p);
+    }
+    else {
       p = new Point(x, y);
       points.push(p);
     }
@@ -432,7 +522,8 @@ canvas.addEventListener("keydown", function(event) {
     }
 
   }
-    
+  
+
   else if (key === "a"){
     //zoom in
     //relative to mouse position, whose pix are stored in mx and my
