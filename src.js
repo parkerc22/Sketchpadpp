@@ -1,9 +1,10 @@
 //-----TO-DO----------------------
 //Add CCW vs CW circle functionality
-//create pixel transform (zoom in/out)
-//snap to endpoints
-//create ability to link
-//create ability to move
+//moving circle center should try to keep endpoints but change radii
+
+//Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
+
+//points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
 
 //window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
@@ -114,6 +115,22 @@ function snapPix(x, y, points, lines, circles, windowTransform, snapRadius) {
 }
 //---------OBJECTS-------------------------------------------------------
 
+class RingParent {
+  constructor(_parent, _next, _prev) {
+    this.object = _parent;
+    this.next = _next;
+    this.prev = _prev;
+  }
+}
+
+class RingChild {
+  constructor(_child, _next, _prev) {
+    this.object = _child;
+    this.next = _next;
+    this.prev = _prev;
+  }
+}
+
 class Point {
   constructor(_x, _y) {
     this.x = _x;
@@ -154,24 +171,33 @@ class Line {
   }
 }
 class Circle {
-  constructor(_x, _y, _r, _d1, _d2) {
-    this.x = _x;
-    this.y = _y;
+  constructor(_center, _r) {
     this.r = _r;
-    this.d1 = _d1;
-    this.d2 = _d2;
     this.radSet = false;
     this.isFinished = false;
+    this.center = _center;
+    this.points = [];
+    this.endpoints = [];
   }
   draw(ctx) {
     // Start a new Path
-    var pix = coordToPix(this.x, this.y, windowTransform);
+    var pix = coordToPix(this.center.x, this.center.y, windowTransform);
     var _x = pix[0];
     var _y = pix[1];
     var _r = distToPix(this.r, windowTransform);
     if (this.radSet) {
+      var d1 = Math.atan((this.endpoints[0].y-this.center.y)/(this.endpoints[0].x-this.center.x));
+      if (this.endpoints[0].x-this.center.x < 0) {
+        d1 += Math.PI;
+      }
+
+      var d2 = Math.atan((this.endpoints[1].y-this.center.y)/(this.endpoints[1].x-this.center.x));
+      if (this.endpoints[1].x-this.center.x < 0) {
+        d2 += Math.PI;
+      }
+
       ctx.beginPath();
-      ctx.arc(_x, _y, _r, this.d1, this.d2);
+      ctx.arc(_x, _y, _r, d1, d2);
 
       // Draw the Path
       ctx.stroke();
@@ -229,17 +255,22 @@ canvas.addEventListener("click", function(event) {
 
     if (circles[circles.length-1].isFinished == false && circles[circles.length-1].radSet == true) {
       circles[circles.length-1].isFinished = true;
+      //circles[circles.length-1].endpoint[1].beingMoved = false;
       isDrawing = false;
     } else {
       if(isDrawing) {
         //if not, then we need to set the radius of the most recent circle.
         c = circles[circles.length-1];
-        c.r = dist(x, y, c.x, c.y);
-        c.d1 = Math.atan((y-c.y)/(x-c.x));
-        if (x-c.x < 0) {
-          c.d1 += Math.PI;
-        }
-        c.d2 = c.d1;
+        c.r = dist(x, y, c.center.x, c.center.y);
+        p = new Point(x, y);
+        c.endpoints[0] = p;
+        points.push(p);
+        q = new Point(x, y);
+        q.beingMoved = true;
+        moving = true;
+        movePoint = q;
+        c.endpoints[1] = q;
+        points.push(q);
         c.radSet = true;
       }
     }
@@ -280,10 +311,16 @@ canvas.addEventListener("mousemove", function(event) {
       c = circles[circles.length-1];
       if (c.radSet) {
         //if radius is set, then move around the arc lengths
-        c.d2 = Math.atan((y-c.y)/(x-c.x));
-        if (x-c.x < 0) {
-          c.d2 += Math.PI;
-        }
+
+        //make sure that the endpoint gets set to the correct radius
+
+        cx = c.center.x;
+        cy = c.center.y;
+
+        d = dist(cx, cy, x, y);
+
+        c.endpoints[1].x = cx + c.r/d * (x-cx);
+        c.endpoints[1].y = cy + c.r/d * (y-cy);
       }
       c.draw(ctx);
     }
@@ -305,10 +342,15 @@ canvas.addEventListener("keydown", function(event) {
   if (key==="c") {
     drawCircle = true;
     drawLine = false;
-    c = new Circle(x,y,0,0,0);
+    var p;
+    if (snappedPix[0] != null) {
+      p = snappedPix[0];
+    } else {
+      p = new Point(x, y);
+      points.push(p);
+    }
+    c = new Circle(p, 0);
     circles.push(c);
-    p = new Point(x,y);
-    points.push(p);
     isDrawing = true;
   }
   else if (key==="l") {
