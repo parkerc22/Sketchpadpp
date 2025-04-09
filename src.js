@@ -121,6 +121,10 @@ class RingParent {
     this.next = _next;
     this.prev = _prev;
   }
+  initialize() {
+    this.next = this;
+    this.prev = this;
+  }
 }
 
 class RingChild {
@@ -136,6 +140,8 @@ class Point {
     this.x = _x;
     this.y = _y;
     this.lines = [];
+    this.ring = new RingParent(this, this, this);
+    this.ring.initialize();
     this.beingMoved = false;
   }
   draw(ctx) {
@@ -237,6 +243,45 @@ canvas.addEventListener("click", function(event) {
  if (moving) {
   moving = false;
   movePoint.beingMoved = false;
+  //merge the points!!
+  if (snappedPix[0] != null) {
+    newpt = snappedPix[0];
+    oldpt = movePoint;
+    //combine the two points by checking all circles and lines for dependencies??
+    for (i = 0; i < lines.length; i++) {
+      l = lines[i];
+      if (l.endpoints[0] === oldpt) {
+        l.endpoints[0] = newpt;
+      }
+      if (l.endpoints[1] === oldpt) {
+        l.endpoints[1] = newpt;
+      }
+    }
+    for (j = 0; j < circles.length; j++) {
+      c = circles[j];
+      if (c.endpoints[0] === oldpt) {
+        c.endpoints[0] = newpt;
+      }
+      if (c.endpoints[1] === oldpt) {
+        c.endpoints[1] = newpt;
+      }
+      if (c.center === oldpt) {
+        c.center = newpt;
+      }
+    }
+    //delete the old one from the points[] array
+    idx = -1;
+    for (p = 0; p < points.length; p++) {
+      if (points[p] === oldpt) {
+        idx = p;
+      }
+    }
+    if (idx != -1) {
+      points.splice(idx, 1);
+    }
+    //free memory from the old one
+    //maybe this is automatic
+  }
  }
  if (drawLine && isDrawing) {
     l = lines[lines.length-1];
