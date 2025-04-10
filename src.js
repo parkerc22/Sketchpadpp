@@ -4,7 +4,7 @@
 
 //Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
 //Enforce this distance constraint even while moving points!!!! 
-//test
+//test2
 
 // To enforce equal line segment length constraints, move both ends of each line segment 2/3 of the way towards the median.
 // Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the anchors target
