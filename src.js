@@ -22,6 +22,8 @@ isDrawing = false;
 drawCircle = true;
 drawLine = false;
 moving = false;
+enforceDistanceWhileMoving = true;
+drawConstraints = false;
 raw_mx = 0;
 mx = 0;
 var WIDTH = 800;
@@ -58,7 +60,7 @@ function distToPix(dist, transform) {
   return dist * transform.Xscale;
 }
 
-function drawDisplay(ctx, canvas, points, lines, circles) {
+function drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (i = 0; i < lines.length; i++) {
     if (lines[i].isFinished) {
@@ -73,6 +75,13 @@ function drawDisplay(ctx, canvas, points, lines, circles) {
   for (p = 0; p < points.length; p++) {
     points[p].draw(ctx);
   }
+
+  if (drawConstraints) {
+    for (j = 0; j < constraints.length; j++) {
+      constraints[j].draw(ctx);
+    }
+  }
+
 }
 
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
@@ -255,6 +264,14 @@ class DistanceConstraint {
     this.dist = dist;
     this.type = "Distance";
   }
+
+  draw(ctx) {
+    ctx.font = '48px serif';
+    var anc = coordToPix(this.anchor.x, this.anchor.y, windowTransform)
+    ctx.fillText('A', anc[0], anc[1]); // Filled text
+    var flo = coordToPix(this.floater.x, this.floater.y, windowTransform)
+    ctx.fillText('F', flo[0], flo[1]); // Filled text
+  }
 }
 
 class EqualLengthConstraint {
@@ -266,6 +283,10 @@ class EqualLengthConstraint {
     this.q1 = q1;
     this.q2 = q2;
     this.type = "EqualLength";
+  }
+
+  draw(ctx) {
+
   }
 }
 
@@ -368,6 +389,8 @@ canvas.addEventListener("click", function(event) {
       l.endpoints[1].x = c.center.x + c.r/d * (coord[0]-c.center.x);
       l.endpoints[1].y = c.center.y + c.r/d * (coord[1]-c.center.y);
       points.push(l.endpoints[1]);
+      constraints.push(new DistanceConstraint(snappedPix[2].center, l.endpoints[1], snappedPix[2].r));
+
     } 
     else {
       l.endpoints[1].x = x;
@@ -398,12 +421,12 @@ canvas.addEventListener("click", function(event) {
         c.endpoints[1] = q;
         points.push(q);
         c.radSet = true;
-        con = new DistanceConstraint(c.center, c.endpoints[1], c.r);
-        constraints.push(con);
+        constraints.push(new DistanceConstraint(c.center, c.endpoints[1], c.r));
+        constraints.push(new DistanceConstraint(c.center, c.endpoints[0], c.r));
       }
     }
   }
-  drawDisplay(ctx, canvas, points, lines, circles);
+  drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
 
 
 });
@@ -414,6 +437,10 @@ canvas.addEventListener("mousemove", function(event) {
   raw_mx = mx;
   raw_my = my;
 
+  if (enforceDistanceWhileMoving) {
+    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+  }
+  
 
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
@@ -437,7 +464,7 @@ canvas.addEventListener("mousemove", function(event) {
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
-  drawDisplay(ctx, canvas, points, lines, circles);
+  drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
 
   ctx.fillRect(mx-2,my-2,5,5)
 
@@ -502,15 +529,14 @@ canvas.addEventListener("keydown", function(event) {
        p = snappedPix[0];
     } else if (snappedPix[2] != null) {
       //then map it to the circle;
-      //this should really come with a constraint that maintains it
       var c = snappedPix[2];
 
       var d = dist(c.center.x, c.center.y, coords[0], coords[1]);
-
       temp_x = c.center.x + c.r/d * (coords[0]-c.center.x);
       temp_y = c.center.y + c.r/d * (coords[1]-c.center.y);
       p = new Point(temp_x, temp_y);
       points.push(p);
+      constraints.push(new DistanceConstraint(snappedPix[2].center, p, snappedPix[2].r));
     }
     else {
       p = new Point(x, y);
@@ -543,7 +569,12 @@ canvas.addEventListener("keydown", function(event) {
   else if (key === "t") {
     //tick constraints
     tickConstraints(constraints, points, lines, circles, windowTransform, 3);
-    drawDisplay(ctx, canvas, points, lines, circles);
+    drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
+
+  } else if (key === "q") {
+    //toggle constraints display
+    drawConstraints = !drawConstraints;
+    drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
 
   }
 
@@ -571,7 +602,7 @@ canvas.addEventListener("keydown", function(event) {
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
     windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
     
-    drawDisplay(ctx, canvas, points, lines, circles);
+    drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
   }
   else if (key === "s") {
     //zoom out
@@ -596,6 +627,6 @@ canvas.addEventListener("keydown", function(event) {
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
     windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
     
-    drawDisplay(ctx, canvas, points, lines, circles);
+    drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
   }
 });
