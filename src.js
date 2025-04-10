@@ -7,7 +7,7 @@
 
 
 // To enforce equal line segment length constraints, move both ends of each line segment 2/3 of the way towards the median.
-// Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the end
+// Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the anchors target
 
 
 //points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
@@ -24,11 +24,13 @@ drawLine = false;
 moving = false;
 enforceDistanceWhileMoving = true;
 enforceDistanceWhileClicking = true;
+creatingEqualityConstraint = false;
 drawConstraints = false;
 raw_mx = 0;
 mx = 0;
 var WIDTH = 800;
 pointSnapRadius = 20; //this radius is in pixels
+lineSnapRadius = 17; //this radius is in pixels
 circleSnapRadius = 17; //this radius is also in pixels
 moveRadius = 20; //this radius is in pixels
 var HEIGHT = 800;
@@ -85,6 +87,7 @@ function drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConst
 
 }
 
+//not currently using the function, only snaps to points at the moment, update it later
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   var output = [null, null, null];
 
@@ -97,7 +100,7 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   return output;
 }
 
-function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius) {
+function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius) {
   var output = [null, null, null];
 
   for (p = 0; p < points.length; p++) {
@@ -105,6 +108,15 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
     if (dist(x, y, coord[0], coord[1]) < pointSnapRadius && !points[p].beingMoved) {
       output[0] = points[p];
     }
+  }
+
+  for (k = 0; k < lines.length; k++) {
+    l = lines[k];
+    //To determine if a point P is within the lineSnapRadius of a pine segment with endpoints A and B:
+    //First project AP onto AB with formula proj = AP dot AB / (AB dot AB) times vector AB
+    //Then, to determine if it lies between the endpoints, check if the length of this projection is "less than zero" or greater than len(AB)
+    //Then use the length of AP minus its projection to compare against lineSnapRadius
+    
   }
 
   for (j = 0; j < circles.length; j++) {
@@ -308,7 +320,7 @@ canvas.addEventListener("click", function(event) {
   raw_mx = mx;
   raw_my = my;
   
-  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
   if (snappedPix[0] != null) {
     var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform);
     mx = t[0];
@@ -331,6 +343,20 @@ canvas.addEventListener("click", function(event) {
   if (enforceDistanceWhileClicking) {
     tickConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
+
+  if (creatingEqualityConstraint) {
+    if (snappedPix[1] == null) {
+      //if we are trying to make an equality constraint and whiff on clicking the second line, do nothing else.
+      return;
+    } else {
+      //otherwise, complete the equality constraint with the line we selected
+      constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
+      constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
+    }
+  }
+
+  
+  
 
  if (moving) {
   moving = false;
@@ -430,8 +456,6 @@ canvas.addEventListener("click", function(event) {
     }
   }
   drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
-
-
 });
 
 canvas.addEventListener("mousemove", function(event) {
@@ -443,10 +467,8 @@ canvas.addEventListener("mousemove", function(event) {
   if (enforceDistanceWhileMoving) {
     tickConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
-  
 
-  
-  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
+  snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
   if (snappedPix[0] != null) {
     var t = coordToPix(snappedPix[0].x, snappedPix[0].y, windowTransform);
     mx = t[0];
@@ -463,7 +485,6 @@ canvas.addEventListener("mousemove", function(event) {
     mx = center[0] + r/d * (mx-center[0]);
     my = center[1] + r/d * (my-center[1]);
   }
-
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
@@ -482,9 +503,7 @@ canvas.addEventListener("mousemove", function(event) {
       c = circles[circles.length-1];
       if (c.radSet) {
         //if radius is set, then move around the arc lengths
-
         //make sure that the endpoint gets set to the correct radius
-
         cx = c.center.x;
         cy = c.center.y;
 
@@ -499,14 +518,11 @@ canvas.addEventListener("mousemove", function(event) {
     movePoint.x = x;
     movePoint.y = y;
   }
-
-
-
 });
 
 canvas.addEventListener("keydown", function(event) {
   const key = event.key;
-  snappedPix = snapPix(raw_mx, raw_my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
+  snappedPix = snapPix(raw_mx, raw_my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
   coords = pixToCoord(raw_mx, raw_my, windowTransform);
   x = coords[0];
   y = coords[1];
@@ -581,6 +597,18 @@ canvas.addEventListener("keydown", function(event) {
 
   }
 
+  else if (key === "e") {
+    //create an equal distance constraint
+    //we need to guarantee that we select two lines
+    //if not currently snapped to a line, do nothing
+    if (snappedPix[1] != null) {
+      //use the endpoints of this line as the first two points for the equality constraint
+      constraints.push(new EqualLengthConstraint(snappedPix.endpoints[0], snappedPix.endpoints[1], snappedPix.endpoints[0], snappedPix.endpoints[1]))
+      creatingEqualityConstraint = true;
+
+    }
+  }
+
   else if (key === "a"){
     //zoom in
     //relative to mouse position, whose pix are stored in mx and my
@@ -597,9 +625,6 @@ canvas.addEventListener("keydown", function(event) {
     var cwidth = WIDTH/windowTransform.Xscale;
     var cheight = HEIGHT/windowTransform.Yscale;
 
-    //this needs to get mapped to 0
-    //windowTransform.Xoffset = -cornerX*windowTransform.Xscale;
-    //windowTransform.Yoffset = -cornerY*windowTransform.Yscale;
     windowTransform.Xscale *= Xzoom;
     windowTransform.Yscale *= Yzoom;
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
@@ -622,9 +647,6 @@ canvas.addEventListener("keydown", function(event) {
     var cwidth = WIDTH/windowTransform.Xscale;
     var cheight = HEIGHT/windowTransform.Yscale;
 
-    //this needs to get mapped to 0
-    //windowTransform.Xoffset = -cornerX*windowTransform.Xscale;
-    //windowTransform.Yoffset = -cornerY*windowTransform.Yscale;
     windowTransform.Xscale *= Xzoom;
     windowTransform.Yscale *= Yzoom;
     windowTransform.Xoffset += cx*WIDTH*(1-Xzoom) / (cwidth)
