@@ -23,6 +23,7 @@ drawCircle = true;
 drawLine = false;
 moving = false;
 enforceDistanceWhileMoving = true;
+enforceDistanceWhileClicking = true;
 drawConstraints = false;
 raw_mx = 0;
 mx = 0;
@@ -327,7 +328,9 @@ canvas.addEventListener("click", function(event) {
 
 
   //Before anything, check if we should snap to another component on the grid (do not check itself)
-
+  if (enforceDistanceWhileClicking) {
+    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+  }
 
  if (moving) {
   moving = false;
