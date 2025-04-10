@@ -5,6 +5,11 @@
 //Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
 //Enforce this distance constraint even while moving points!!!! 
 
+
+// To enforce equal line segment length constraints, move both ends of each line segment 2/3 of the way towards the median.
+// Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the end
+
+
 //points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
 
 //window.alert("click in the box");
@@ -137,10 +142,6 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
       if (pt[0]-c.center.x < 0) {
         angle += Math.PI;
       }
-      console.log(d1);
-      console.log(d2);
-      console.log(angle);
-      console.log("-----");
       if (d1 < angle || angle < d2) {
         output[2] = c;
       }
@@ -149,6 +150,30 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
 
   return output;
 }
+
+
+//performs a timestep for the constraint satisfaction. pixThreshold is the threshold beyond which a constraint is considered satisfied/in "final" state.
+function tickConstraints(constraints, points, lines, circles, windowTransform, pixThreshold) {
+  for (c = 0; c < constraints.length; c++) {
+    constraint = constraints[c];
+    if (constraint.type === "Distance") {
+
+      //If the constraint type is a distance type, move the floater 2/3 of the way towards the anchor pt
+      var d = dist(constraint.anchor.x, constraint.anchor.y, constraint.floater.x, constraint.floater.y);
+      
+      //compute 2/3 interpolated target distance
+      var target = (2*constraint.dist / 3) + (d/3);
+
+
+      //update floater point coordinates
+      constraint.floater.x = constraint.anchor.x + target / d * (constraint.floater.x-constraint.anchor.x);
+      constraint.floater.y = constraint.anchor.y + target / d * (constraint.floater.y-constraint.anchor.y);
+
+    }
+  }
+
+}
+
 //---------OBJECTS-------------------------------------------------------
 
 class RingParent {
@@ -256,14 +281,30 @@ class DistanceConstraint {
   //distance constraints have two points, with different roles
   //the ANCHOR will never move due to a distance constraint (usually the center of a circle)
   //the FLOATER will always move to satisfy a distance constraint (usually a point unbound to any circles)
-  constructor(p1, p2, dist) {
-    this.anchor = p1;
-    this.floater = p2;
+  constructor(anc, flo, dist) {
+    this.anchor = anc;
+    this.floater = flo;
     this.dist = dist;
+    this.type = "Distance";
   }
 
 }
-  
+
+class EqualLengthConstraint {
+
+  //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
+  // second pair of points.
+
+  constructor(p1, p2, q1, q2) {
+    this.p1 = p1;
+    this.p2 = p2;
+    this.q1 = q1;
+    this.q2 = q2;
+    this.type = "EqualLength";
+  }
+
+
+}
 
 
 
@@ -384,6 +425,8 @@ canvas.addEventListener("click", function(event) {
         c.endpoints[1] = q;
         points.push(q);
         c.radSet = true;
+        con = new DistanceConstraint(c.center, c.endpoints[1], c.r);
+        constraints.push(con);
       }
     }
   }
@@ -397,6 +440,8 @@ canvas.addEventListener("mousemove", function(event) {
   my = event.offsetY;
   raw_mx = mx;
   raw_my = my;
+
+
   
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, circleSnapRadius);
   if (snappedPix[0] != null) {
@@ -522,7 +567,12 @@ canvas.addEventListener("keydown", function(event) {
     }
 
   }
-  
+  else if (key === "t") {
+    //tick constraints
+    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+    drawDisplay(ctx, canvas, points, lines, circles);
+
+  }
 
   else if (key === "a"){
     //zoom in
