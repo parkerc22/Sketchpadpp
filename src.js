@@ -4,11 +4,9 @@
 
 //Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
 //Enforce this distance constraint even while moving points!!!! 
-//test2
 
 // To enforce equal line segment length constraints, move both ends of each line segment 2/3 of the way towards the median.
 // Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the anchors target
-
 
 //points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
 
@@ -44,6 +42,15 @@ windowTransform = {Xscale: 1.0, Yscale: 1.0, Xoffset: 0.0, Yoffset: 0.0}
 
 function dist(x1, y1, x2, y2) {
   return Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+}
+
+function dot(p1, p2, q1, q2) {
+  //return dot product of (p2-p1) and (q2-q1)
+  var px = p2.x-p1.x;
+  var py = p2.y-p1.y;
+  var qx = q2.x-q1.x;
+  var qy = q2.y-q1.y;
+  return (px*qx)+(py*qy);
 }
 
 function coordToPix(x, y, transform) {
@@ -101,7 +108,8 @@ function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
 }
 
 function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius) {
-  var output = [null, null, null];
+  var output = [null, null, null, null];
+  //output = [point snapped to, line snapped to, circle snapped to, snapped line projection]
 
   for (p = 0; p < points.length; p++) {
     var coord = coordToPix(points[p].x, points[p].y, windowTransform);
@@ -112,11 +120,34 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
 
   for (k = 0; k < lines.length; k++) {
     l = lines[k];
-    //To determine if a point P is within the lineSnapRadius of a pine segment with endpoints A and B:
+    if (!l.isFinished) {
+      continue;
+    }
+    //To determine if a point P is within the lineSnapRadius of a line segment with endpoints A and B:
     //First project AP onto AB with formula proj = AP dot AB / (AB dot AB) times vector AB
     //Then, to determine if it lies between the endpoints, check if the length of this projection is "less than zero" or greater than len(AB)
     //Then use the length of AP minus its projection to compare against lineSnapRadius
-    
+    var dot1 = dot(l.endpoints[0], new Point(x, y), l.endpoints[0], l.endpoints[1]);
+    var dot2 = dot(l.endpoints[0], l.endpoints[1], l.endpoints[0], l.endpoints[1]);
+    var projX = dot1/dot2 * (l.endpoints[1].x-l.endpoints[0].x);
+    var projY = dot1/dot2 * (l.endpoints[1].y-l.endpoints[0].y);
+
+    if (projX*projX + projY * projY > dot2) {
+      //then, the projection is longer than the line segment, so reject
+      continue;
+    }
+    if (dot1 < 0) {
+      //then, it points away, so its out of bounds, reject
+      continue;
+    }
+    //check if it is within the lineSnapRadius
+    //compute orthogonal component
+    orthX = projX - (x-l.endpoints[0].x);
+    orthY = projY - (y-l.endpoints[0].y);
+    if (orthX*orthX + orthY * orthY  < lineSnapRadius * lineSnapRadius) {
+      output[1] = l;
+      output[3] = new Point(projX + l.endpoints[0].x, projY + l.endpoints[0].y);
+    }
   }
 
   for (j = 0; j < circles.length; j++) {
@@ -149,7 +180,7 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
 
 
 //performs a timestep for the constraint satisfaction. pixThreshold is the threshold beyond which a constraint is considered satisfied/in "final" state.
-function tickConstraints(constraints, points, lines, circles, windowTransform, pixThreshold) {
+function tickDistanceConstraints(constraints, points, lines, circles, windowTransform, pixThreshold) {
   for (c = 0; c < constraints.length; c++) {
     constraint = constraints[c];
     if (constraint.type === "Distance") {
@@ -164,6 +195,32 @@ function tickConstraints(constraints, points, lines, circles, windowTransform, p
       constraint.floater.x = constraint.anchor.x + target / d * (constraint.floater.x-constraint.anchor.x);
       constraint.floater.y = constraint.anchor.y + target / d * (constraint.floater.y-constraint.anchor.y);
 
+    }
+  }
+}
+
+function tickEqualityConstraints(constraints, points, lines, circles, windowTransform, pixThreshold) {
+  for (i = 0; i < constraints.length; i++) {
+    c = constraints[i];
+    if (c.type === "EqualLength") {
+      //nudge points along their axes, 2/3 of the way towards the median length
+      var pDist = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var qDist = dist(c.q1.x, c.q1.y, c.q2.x, c.q2.y);
+      var avgLength = 0.5*pDist + 0.5*qDist;
+      var pTargetLength = 2*avgLength/3 + pDist/3;
+      var qTargetLength = 2*avgLength/3 + qDist/3;
+      var pCenterX = 0.5*c.p1.x + 0.5*c.p2.x;
+      var pCenterY = 0.5*c.p1.y + 0.5*c.p2.y;
+      var qCenterX = 0.5*c.q1.x + 0.5*c.q2.x;
+      var qCenterY = 0.5*c.q1.y + 0.5*c.q2.y;
+      c.p1.x = pCenterX + pTargetLength/pDist*(c.p1.x - pCenterX);
+      c.p1.y = pCenterY + pTargetLength/pDist*(c.p1.y - pCenterY);
+      c.p2.x = pCenterX + pTargetLength/pDist*(c.p2.x - pCenterX);
+      c.p2.y = pCenterY + pTargetLength/pDist*(c.p2.y - pCenterY);
+      c.q1.x = qCenterX + qTargetLength/qDist*(c.q1.x - qCenterX);
+      c.q1.y = qCenterY + qTargetLength/qDist*(c.q1.y - qCenterY);
+      c.q2.x = qCenterX + qTargetLength/qDist*(c.q2.x - qCenterX);
+      c.q2.y = qCenterY + qTargetLength/qDist*(c.q2.y - qCenterY);
     }
   }
 }
@@ -256,7 +313,11 @@ class Circle {
       }
 
       ctx.beginPath();
-      ctx.arc(_x, _y, _r, d1, d2);
+      if (distToPix(dist(this.endpoints[0].x, this.endpoints[0].y, this.endpoints[1].x, this.endpoints[1].y), windowTransform) < pointSnapRadius) {
+        ctx.arc(_x, _y, _r, 0, 2*Math.PI);  
+      } else {
+        ctx.arc(_x, _y, _r, d1, d2);
+      }
 
       // Draw the Path
       ctx.stroke();
@@ -333,7 +394,10 @@ canvas.addEventListener("click", function(event) {
 
     mx = center[0] + rad/d * (mx-center[0]);
     my = center[1] + rad/d * (my-center[1]);
-  } 
+  } else if (snappedPix[1] != null) {
+    mx = snappedPix[3].x;
+    my = snappedPix[3].y;
+  }
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
   y = coord[1];
@@ -341,7 +405,7 @@ canvas.addEventListener("click", function(event) {
 
   //Before anything, check if we should snap to another component on the grid (do not check itself)
   if (enforceDistanceWhileClicking) {
-    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+    tickDistanceConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
 
   if (creatingEqualityConstraint) {
@@ -352,6 +416,7 @@ canvas.addEventListener("click", function(event) {
       //otherwise, complete the equality constraint with the line we selected
       constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
+      creatingEqualityConstraint = false;
     }
   }
 
@@ -465,7 +530,7 @@ canvas.addEventListener("mousemove", function(event) {
   raw_my = my;
 
   if (enforceDistanceWhileMoving) {
-    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+    tickDistanceConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
 
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
@@ -484,6 +549,11 @@ canvas.addEventListener("mousemove", function(event) {
 
     mx = center[0] + r/d * (mx-center[0]);
     my = center[1] + r/d * (my-center[1]);
+  } else if (snappedPix[1] != null) {
+    //this means we snapped to a line
+    //output[3] stores the output point
+    mx = snappedPix[3].x;
+    my = snappedPix[3].y;
   }
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
@@ -556,6 +626,10 @@ canvas.addEventListener("keydown", function(event) {
       p = new Point(temp_x, temp_y);
       points.push(p);
       constraints.push(new DistanceConstraint(snappedPix[2].center, p, snappedPix[2].r));
+    } else if (snappedPix[1] != null) {
+      var pt = pixToCoord(snappedPix[3].x, snappedPix[3].y, windowTransform);
+      p = new Point(pt[0], pt[1]);
+      points.push(p);
     }
     else {
       p = new Point(x, y);
@@ -587,7 +661,8 @@ canvas.addEventListener("keydown", function(event) {
   }
   else if (key === "t") {
     //tick constraints
-    tickConstraints(constraints, points, lines, circles, windowTransform, 3);
+    tickDistanceConstraints(constraints, points, lines, circles, windowTransform, 3);
+    tickEqualityConstraints(constraints, points, lines, circles, windowTransform, 3)
     drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
 
   } else if (key === "q") {
@@ -603,9 +678,8 @@ canvas.addEventListener("keydown", function(event) {
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the first two points for the equality constraint
-      constraints.push(new EqualLengthConstraint(snappedPix.endpoints[0], snappedPix.endpoints[1], snappedPix.endpoints[0], snappedPix.endpoints[1]))
+      constraints.push(new EqualLengthConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]))
       creatingEqualityConstraint = true;
-
     }
   }
 
