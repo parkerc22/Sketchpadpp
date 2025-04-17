@@ -22,6 +22,7 @@ drawLine = false;
 moving = false;
 enforceDistanceWhileMoving = true;
 enforceDistanceWhileClicking = true;
+enforceEqualityWhileMoving = true;
 creatingEqualityConstraint = false;
 drawConstraints = false;
 raw_mx = 0;
@@ -531,6 +532,10 @@ canvas.addEventListener("mousemove", function(event) {
 
   if (enforceDistanceWhileMoving) {
     tickDistanceConstraints(constraints, points, lines, circles, windowTransform, 3);
+  }
+
+  if (enforceEqualityWhileMoving) {
+    tickEqualityConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
 
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
