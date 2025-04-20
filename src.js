@@ -1,4 +1,5 @@
 //-----TO-DO----------------------
+//fix zoom-in snap bug for lines and circles (line 133)
 //Add CCW vs CW circle functionality
 //moving circle center should try to keep endpoints but change radii
 
@@ -128,7 +129,10 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
     //First project AP onto AB with formula proj = AP dot AB / (AB dot AB) times vector AB
     //Then, to determine if it lies between the endpoints, check if the length of this projection is "less than zero" or greater than len(AB)
     //Then use the length of AP minus its projection to compare against lineSnapRadius
-    var dot1 = dot(l.endpoints[0], new Point(x, y), l.endpoints[0], l.endpoints[1]);
+
+    //added this to fix bug
+    var coords  = pixToCoord(x, y, windowTransform)
+    var dot1 = dot(l.endpoints[0], new Point(coords[0], coords[1]), l.endpoints[0], l.endpoints[1]);
     var dot2 = dot(l.endpoints[0], l.endpoints[1], l.endpoints[0], l.endpoints[1]);
     var projX = dot1/dot2 * (l.endpoints[1].x-l.endpoints[0].x);
     var projY = dot1/dot2 * (l.endpoints[1].y-l.endpoints[0].y);
@@ -566,8 +570,10 @@ canvas.addEventListener("mousemove", function(event) {
   } else if (snappedPix[1] != null) {
     //this means we snapped to a line
     //output[3] stores the output point
-    mx = snappedPix[3].x;
-    my = snappedPix[3].y;
+    //added this to fix bug
+    var newCoords = coordToPix(snappedPix[3].x, snappedPix[3].y, windowTransform);
+    mx = newCoords[0];
+    my = newCoords[1];
   }
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
