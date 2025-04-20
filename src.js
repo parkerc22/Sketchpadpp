@@ -375,6 +375,15 @@ circles = [];
 constraints = [];
 movingPoint = new Point(0,0);
 
+
+//These set autonomous timers to enforce constraints and update the display. At the moment it interferes with
+//the cursor being drawn since that is not a part of the drawDisplay method and only happens on mouseMove.
+//Without these autonomous intervals, the constraints are only ticked when the mouse is moved, which can look clunky.
+//setInterval(tickEqualityConstraints, 1000, constraints, points, lines, circles, windowTransform, 3);
+//setInterval(tickDistanceConstraints, 1000, constraints, points, lines, circles, windowTransform, 3);
+//setInterval(drawDisplay, 500, ctx, canvas, points, lines, circles, constraints, drawConstraints);
+
+
 //assume just line tool for now
 canvas.addEventListener("click", function(event) {
   mx = event.offsetX;
