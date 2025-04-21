@@ -24,7 +24,9 @@ moving = false;
 enforceDistanceWhileMoving = true;
 enforceDistanceWhileClicking = true;
 enforceEqualityWhileMoving = true;
+enforceParallelWhileMoving = true;
 creatingEqualityConstraint = false;
+creatingParallelConstraint = false;
 drawConstraints = false;
 raw_mx = 0;
 mx = 0;
@@ -233,6 +235,59 @@ function tickEqualityConstraints(constraints, points, lines, circles, windowTran
   }
 }
 
+function tickParallelConstraints(constraints, points, lines, circles, windowTransform, pixThreshold) {
+  for (i = 0; i < constraints.length; i++) {
+    c = constraints[i];
+    if (c.type === "Parallel") {
+      //calculate the relative rotations and then rotate each line segment 2/3 of the way to the middle?
+      //calculate the two angles of each line and calculate the target angle difference
+      console.log(c.p2.y, c.p1.y, c.p2.x, c.p1.x);
+      var ang1 = Math.atan((c.p2.y-c.p1.y)/(c.p2.x-c.p1.x));
+      if ((c.p2.y-c.p1.y)/(c.p2.x-c.p1.x) < 0) {
+        ang1 += Math.PI;
+      }
+      console.log(c.q2.y, c.q1.y, c.q2.x, c.q1.x);
+      var ang2 = Math.atan((c.q2.y-c.q1.y)/(c.q2.x-c.q1.x));
+      if ((c.q2.y-c.q1.y)/(c.q2.x-c.q1.x) < 0) {
+        ang2 += Math.PI;
+      }
+      var medAngle = 0.5*(ang1+ang2);
+      //find the median angle that makes sense
+      if (Math.abs(medAngle - ang1) > 0.5*Math.PI) {
+        medAngle += Math.PI;
+      }
+      
+      console.log(ang1, ang2, medAngle);
+
+      var rot1 = -2*(ang1-medAngle) / 3;
+      var rot2 = -2*(ang2-medAngle) / 3;
+      if (rot1 < -0.5*Math.PI) {
+        rot1 += 2*Math.PI;
+      }
+      if (rot2 < -0.5*Math.PI) {
+        rot2 += 2*Math.PI;
+      }
+
+      
+      console.log(rot1, rot2);
+
+      //subtract the center point of each line and apply rotation matrices to the endpoints
+      var pMid = new Point(0.5*(c.p1.x+c.p2.x), 0.5*(c.p1.y+c.p2.y));
+      var qMid = new Point(0.5*(c.q1.x+c.q2.x), 0.5*(c.q1.y+c.q2.y));
+
+      c.p1.x = pMid.x + (Math.cos(rot1) * (c.p1.x-pMid.x) - Math.sin(rot1) * (c.p1.y-pMid.y));
+      c.p1.y = pMid.y + (Math.sin(rot1) * (c.p1.x-pMid.x) + Math.cos(rot1) * (c.p1.y-pMid.y));
+      c.p2.x = pMid.x + (Math.cos(rot1) * (c.p2.x-pMid.x) - Math.sin(rot1) * (c.p2.y-pMid.y));
+      c.p2.y = pMid.y + (Math.sin(rot1) * (c.p2.x-pMid.x) + Math.cos(rot1) * (c.p2.y-pMid.y));
+      c.q1.x = qMid.x + (Math.cos(rot2) * (c.q1.x-qMid.x) - Math.sin(rot2) * (c.q1.y-qMid.y));
+      c.q1.y = qMid.y + (Math.sin(rot2) * (c.q1.x-qMid.x) + Math.cos(rot2) * (c.q1.y-qMid.y));
+      c.q2.x = qMid.x + (Math.cos(rot2) * (c.q2.x-qMid.x) - Math.sin(rot2) * (c.q2.y-qMid.y));
+      c.q2.y = qMid.y + (Math.sin(rot2) * (c.q2.x-qMid.x) + Math.cos(rot2) * (c.q2.y-qMid.y));
+
+    }
+  }
+}
+
 //---------OBJECTS-------------------------------------------------------
 
 class RingParent {
@@ -368,7 +423,43 @@ class EqualLengthConstraint {
   }
 
   draw(ctx) {
+    ctx.font = '48px serif';
+    var pt1 = coordToPix(this.p1.x, this.p1.y, windowTransform);
+    var pt2 = coordToPix(this.p2.x, this.p2.y, windowTransform);
+    var qt1 = coordToPix(this.q1.x, this.q1.y, windowTransform);
+    var qt2 = coordToPix(this.q2.x, this.q2.y, windowTransform);
+    var pMidX = 0.5*(pt1[0] + pt2[0]);
+    var pMidY = 0.5*(pt1[1] + pt2[1]);
+    var qMidX = 0.5*(qt1[0] + qt2[0]);
+    var qMidY = 0.5*(qt1[1] + qt2[1]);
+    ctx.fillText('E1', pMidX, pMidY); // Filled text
+    ctx.fillText('E2', qMidX, qMidY); // Filled text
+  }
+}
 
+class ParallelConstraint {
+  //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
+  // second pair of points.
+  constructor(p1, p2, q1, q2) {
+    this.p1 = p1;
+    this.p2 = p2;
+    this.q1 = q1;
+    this.q2 = q2;
+    this.type = "Parallel";
+  }
+
+  draw(ctx) {
+    ctx.font = '48px serif';
+    var pt1 = coordToPix(this.p1.x, this.p1.y, windowTransform);
+    var pt2 = coordToPix(this.p2.x, this.p2.y, windowTransform);
+    var qt1 = coordToPix(this.q1.x, this.q1.y, windowTransform);
+    var qt2 = coordToPix(this.q2.x, this.q2.y, windowTransform);
+    var pMidX = 0.5*(pt1[0] + pt2[0]);
+    var pMidY = 0.5*(pt1[1] + pt2[1]);
+    var qMidX = 0.5*(qt1[0] + qt2[0]);
+    var qMidY = 0.5*(qt1[1] + qt2[1]);
+    ctx.fillText('P1', pMidX, pMidY); // Filled text
+    ctx.fillText('P2', qMidX, qMidY); // Filled text
   }
 }
 
@@ -434,6 +525,16 @@ canvas.addEventListener("click", function(event) {
       constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
       creatingEqualityConstraint = false;
+    }
+  } else if (creatingParallelConstraint) {
+    if (snappedPix[1] == null) {
+      //if we are trying to make an parallel constraint and whiff on clicking the second line, do nothing else.
+      return;
+    } else {
+      //otherwise, complete the parallel constraint with the line we selected
+      constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
+      constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
+      creatingParallelConstraint = false;
     }
   }
 
@@ -552,6 +653,10 @@ canvas.addEventListener("mousemove", function(event) {
 
   if (enforceEqualityWhileMoving) {
     tickEqualityConstraints(constraints, points, lines, circles, windowTransform, 3);
+  }
+
+  if (enforceParallelWhileMoving) {
+    tickParallelConstraints(constraints, points, lines, circles, windowTransform, 3);
   }
 
   snappedPix = snapPix(mx, my, points, lines, circles, windowTransform, pointSnapRadius, lineSnapRadius, circleSnapRadius);
@@ -686,6 +791,7 @@ canvas.addEventListener("keydown", function(event) {
     //tick constraints
     tickDistanceConstraints(constraints, points, lines, circles, windowTransform, 3);
     tickEqualityConstraints(constraints, points, lines, circles, windowTransform, 3)
+    tickParallelConstraints(constraints, points, lines, circles, windowTransform, 3);
     drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
 
   } else if (key === "q") {
@@ -703,6 +809,17 @@ canvas.addEventListener("keydown", function(event) {
       //use the endpoints of this line as the first two points for the equality constraint
       constraints.push(new EqualLengthConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]))
       creatingEqualityConstraint = true;
+    }
+  }
+
+  else if (key === "p") {
+    //create an parallel constraint
+    //we need to guarantee that we select two lines
+    //if not currently snapped to a line, do nothing
+    if (snappedPix[1] != null) {
+      //use the endpoints of this line as the first two points for the equality constraint
+      constraints.push(new ParallelConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]))
+      creatingParallelConstraint = true;
     }
   }
 
