@@ -151,7 +151,6 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
     orthY = projY - (coords[1]-l.endpoints[0].y);
     var rad = distToCoord(lineSnapRadius, windowTransform);
     if (orthX*orthX + orthY * orthY  < rad*rad) {
-      console.log("line");
       output[1] = l;
       //output line  snapped point should be in pixels
       var outPoint = coordToPix(projX + l.endpoints[0].x, projY + l.endpoints[0].y, windowTransform);
