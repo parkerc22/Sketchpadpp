@@ -147,11 +147,15 @@ function snapPix(x, y, points, lines, circles, windowTransform, pointSnapRadius,
     }
     //check if it is within the lineSnapRadius
     //compute orthogonal component
-    orthX = projX - (x-l.endpoints[0].x);
-    orthY = projY - (y-l.endpoints[0].y);
-    if (orthX*orthX + orthY * orthY  < lineSnapRadius * lineSnapRadius) {
+    orthX = projX - (coords[0]-l.endpoints[0].x);
+    orthY = projY - (coords[1]-l.endpoints[0].y);
+    var rad = distToCoord(lineSnapRadius, windowTransform);
+    if (orthX*orthX + orthY * orthY  < rad*rad) {
+      console.log("line");
       output[1] = l;
-      output[3] = new Point(projX + l.endpoints[0].x, projY + l.endpoints[0].y);
+      //output line  snapped point should be in pixels
+      var outPoint = coordToPix(projX + l.endpoints[0].x, projY + l.endpoints[0].y, windowTransform);
+      output[3] = new Point(outPoint[0], outPoint[1]);
     }
   }
 
@@ -571,9 +575,9 @@ canvas.addEventListener("mousemove", function(event) {
     //this means we snapped to a line
     //output[3] stores the output point
     //added this to fix bug
-    var newCoords = coordToPix(snappedPix[3].x, snappedPix[3].y, windowTransform);
-    mx = newCoords[0];
-    my = newCoords[1];
+    //var newCoords = coordToPix(snappedPix[3].x, snappedPix[3].y, windowTransform);
+    mx = snappedPix[3].x;
+    my = snappedPix[3].y;
   }
   const coord = pixToCoord(mx, my, windowTransform);
   x = coord[0];
