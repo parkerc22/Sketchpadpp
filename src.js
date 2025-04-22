@@ -7,6 +7,10 @@ canvas.style.cursor = "crosshair";
 const ctx = canvas.getContext("2d");
 ctx.fillStyle = "white";
 ctx.strokeStyle = "white";
+ctx.font = "200px Arial";
+var initial_text = "INK";
+var textWidth = ctx.measureText(initial_text).width;
+ctx.fillText(initial_text, canvas.width / 2 - textWidth / 2, canvas.height / 2);
 
 canvas.focus();
 isDrawing = false;
@@ -23,17 +27,22 @@ creatingParallelConstraint = false;
 drawConstraints = false;
 raw_mx = 0;
 mx = 0;
-var WIDTH = 800;
+var WIDTH = canvas.width;
 pointSnapRadius = 20; //this radius is in pixels
 lineSnapRadius = 17; //this radius is in pixels
 circleSnapRadius = 17; //this radius is also in pixels
 moveRadius = 20; //this radius is in pixels
-var HEIGHT = 800;
+var HEIGHT = canvas.height;
 raw_my = 0;
 my = 0;
 //the coordinate transformation to map from coordinates to pixels (scale and then offset)
 windowTransform = {Xscale: 1.0, Yscale: 1.0, Xoffset: 0.0, Yoffset: 0.0}
 //line by default
+
+const pressedKey = document.getElementById("pressedKey");
+var keyPressed = "Key Pressed: ";
+displayKeyPressed = false;
+var resolvedKey = true
 
 //----------TOOLS-----------------------------------------------------
 
@@ -703,6 +712,7 @@ canvas.addEventListener("click", function(event) {
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
       constraints[constraints.length-1].l2 = snappedPix[1];
       creatingEqualityConstraint = false;
+      displayKeyPressed = false;
     }
   } else if (creatingParallelConstraint) {
     if (snappedPix[1] == null) {
@@ -714,6 +724,7 @@ canvas.addEventListener("click", function(event) {
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
       constraints[constraints.length-1].l2 = snappedPix[1];
       creatingParallelConstraint = false;
+      displayKeyPressed = false;
     }
   }
 
@@ -763,6 +774,7 @@ canvas.addEventListener("click", function(event) {
     constraints.push(new DistanceConstraint(snappedPix[2].center, movePoint, snappedPix[2].r));
 
   }
+  displayKeyPressed = false;
  }
  if (drawLine && isDrawing) {
     l = lines[lines.length-1];
@@ -787,6 +799,7 @@ canvas.addEventListener("click", function(event) {
     }
 
     isDrawing = false;
+    displayKeyPressed = false;
   }
   if (drawCircle) {
 
@@ -794,6 +807,7 @@ canvas.addEventListener("click", function(event) {
       circles[circles.length-1].isFinished = true;
       //circles[circles.length-1].endpoint[1].beingMoved = false;
       isDrawing = false;
+      displayKeyPressed = false;
     } else {
       if(isDrawing) {
         //if not, then we need to set the radius of the most recent circle.
@@ -815,6 +829,9 @@ canvas.addEventListener("click", function(event) {
     }
   }
   drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
+  if (!displayKeyPressed) {
+    pressedKey.innerText = keyPressed;
+  }
 });
 
 canvas.addEventListener("mousemove", function(event) {
@@ -903,9 +920,11 @@ canvas.addEventListener("keydown", function(event) {
   coords = pixToCoord(raw_mx, raw_my, windowTransform);
   x = coords[0];
   y = coords[1];
+  displayKeyPressed = false;
   if (key==="c" || key === "x") {
     drawCircle = true;
     drawLine = false;
+    displayKeyPressed = true;
     var p;
     if (snappedPix[0] != null) {
       p = snappedPix[0];
@@ -939,6 +958,7 @@ canvas.addEventListener("keydown", function(event) {
   else if (key==="l") {
     drawCircle = false;
     drawLine = true;
+    displayKeyPressed = true;
     var p;
     if (snappedPix[0] != null) {
        p = snappedPix[0];
@@ -982,6 +1002,7 @@ canvas.addEventListener("keydown", function(event) {
       moving = true;
       movePoint = best;
       movePoint.beingMoved = true;
+      displayKeyPressed = true;
     }
 
   }
@@ -989,6 +1010,7 @@ canvas.addEventListener("keydown", function(event) {
     //tick constraints
     tickAllConstraints(constraints, points, lines, circles, windowTransform, 3);
     drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
+    displayKeyPressed = false;
 
   } else if (key === "q") {
     //toggle constraints display
@@ -1004,6 +1026,7 @@ canvas.addEventListener("keydown", function(event) {
       //use the endpoints of this line as the first two points for the equality constraint
       constraints.push(new EqualLengthConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1], snappedPix[1]))
       creatingEqualityConstraint = true;
+      displayKeyPressed = true;
     }
   }
 
@@ -1015,6 +1038,7 @@ canvas.addEventListener("keydown", function(event) {
       //use the endpoints of this line as the first two points for the equality constraint
       constraints.push(new ParallelConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1], snappedPix[1]))
       creatingParallelConstraint = true;
+      displayKeyPressed = true;
     }
   }
 
@@ -1024,15 +1048,17 @@ canvas.addEventListener("keydown", function(event) {
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the two points for the horizontal constraint
       constraints.push(new HorizontalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1]));
+      displayKeyPressed = true;
     }
   }
 
   else if (key === "v") {
-    //create a horizontal constraint
+    //create a vertical constraint
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
-      //use the endpoints of this line as the two points for the horizontal constraint
+      //use the endpoints of this line as the two points for the vertical constraint
       constraints.push(new VerticalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1]));
+      displayKeyPressed = true;
     }
   }
 
@@ -1168,5 +1194,11 @@ canvas.addEventListener("keydown", function(event) {
     windowTransform.Yoffset += cy*HEIGHT*(1-Yzoom) / (cheight)
     
     drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
+  }
+
+  if (displayKeyPressed) {
+    pressedKey.innerText = keyPressed + key.toUpperCase();
+  } else {
+    pressedKey.innerText = keyPressed;
   }
 });
