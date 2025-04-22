@@ -1,5 +1,5 @@
 //-----TO-DO----------------------
-//fix zoom-in snap bug for lines and circles (line 133)
+//fix parallel constraints bugs
 //Add CCW vs CW circle functionality
 //moving circle center should try to keep endpoints but change radii
 
@@ -864,6 +864,20 @@ canvas.addEventListener("keydown", function(event) {
     var p;
     if (snappedPix[0] != null) {
       p = snappedPix[0];
+    } else if (snappedPix[2] != null) {
+      //then map it to the circle;
+      var c = snappedPix[2];
+
+      var d = dist(c.center.x, c.center.y, coords[0], coords[1]);
+      temp_x = c.center.x + c.r/d * (coords[0]-c.center.x);
+      temp_y = c.center.y + c.r/d * (coords[1]-c.center.y);
+      p = new Point(temp_x, temp_y);
+      points.push(p);
+      constraints.push(new DistanceConstraint(snappedPix[2].center, p, snappedPix[2].r));
+    } else if (snappedPix[1] != null) {
+      var pt = pixToCoord(snappedPix[3].x, snappedPix[3].y, windowTransform);
+      p = new Point(pt[0], pt[1]);
+      points.push(p);
     } else {
       p = new Point(x, y);
       points.push(p);
@@ -970,6 +984,70 @@ canvas.addEventListener("keydown", function(event) {
       //use the endpoints of this line as the two points for the horizontal constraint
       constraints.push(new VerticalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]));
     }
+  }
+
+  else if (key === "d") {
+    //DELETE FUNCTION
+    //If snapped to a point, delete that point and all lines and circles that use that point as an endpoint or radius
+    //else if snapped to a circle, just delete the circle
+    //else if snapped to a line, just delete the line
+    if (snappedPix[0] != null) {
+      //delete the old one from the points[] array
+      idx = -1;
+      for (p = 0; p < points.length; p++) {
+        if (points[p] === snappedPix[0]) {
+          idx = p;
+        }
+      }
+      if (idx != -1) {
+        points.splice(idx, 1);
+      }
+      //find any lines whose endpoint is the snapped pix point
+      idxs = [];
+      for (l = lines.length-1; l >= 0; l--) {
+        if (lines[l].endpoints[0] === snappedPix[0] || lines[l].endpoints[1] === snappedPix[0]) {
+          idxs.push(l);
+        }
+      }
+      for (i = 0; i < idxs.length; i++) {
+        lines.splice(idxs[i], 1);
+      }
+
+      //find any circles that have the point as an endpoint or radius
+      idxs = [];
+      for (c = circles.length-1; c >= 0; c--) {
+        if (circles[c].endpoints[0] === snappedPix[0] || circles[c].endpoints[1] === snappedPix[0] || circles[c].center === snappedPix[0]) {
+          idxs.push(c);
+        }
+      }
+      for (i = 0; i < idxs.length; i++) {
+        circles.splice(idxs[i], 1);
+      }
+    } else if (snappedPix[1] != null) {
+      //delete the old one from the lines[] array
+      idx = -1;
+      for (l = 0; l < lines.length; l++) {
+        if (lines[l] === snappedPix[1]) {
+          idx = l;
+        }
+      }
+      if (idx != -1) {
+        lines.splice(idx, 1);
+      }
+    } else if (snappedPix[2] != null) {
+      //delete the old one from the circles[] array
+      idx = -1;
+      for (c = 0; c < circles.length; c++) {
+        if (circles[c] === snappedPix[2]) {
+          idx = c;
+        }
+      }
+      if (idx != -1) {
+        circles.splice(idx, 1);
+      }
+    }
+    drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConstraints);
+
   }
 
   else if (key === "a"){
