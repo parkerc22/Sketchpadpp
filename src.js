@@ -13,9 +13,12 @@
 
 //window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
-canvas.style.cursor = "none";
+canvas.style.cursor = "crosshair";
 
 const ctx = canvas.getContext("2d");
+ctx.fillStyle = "white";
+ctx.strokeStyle = "white";
+
 canvas.focus();
 isDrawing = false;
 drawCircle = true;
