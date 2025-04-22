@@ -272,6 +272,9 @@ function tickParallelConstraints(constraints, points, lines, circles, windowTran
       var pMid = new Point(0.5*(c.p1.x+c.p2.x), 0.5*(c.p1.y+c.p2.y));
       var qMid = new Point(0.5*(c.q1.x+c.q2.x), 0.5*(c.q1.y+c.q2.y));
 
+      var pTargetLength = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var qTargetLength = dist(c.q1.x, c.q1.y, c.q2.x, c.q2.y);
+
       c.p1.x = pMid.x + (Math.cos(rot1) * (c.p1.x-pMid.x) - Math.sin(rot1) * (c.p1.y-pMid.y));
       c.p1.y = pMid.y + (Math.sin(rot1) * (c.p1.x-pMid.x) + Math.cos(rot1) * (c.p1.y-pMid.y));
       c.p2.x = pMid.x + (Math.cos(rot1) * (c.p2.x-pMid.x) - Math.sin(rot1) * (c.p2.y-pMid.y));
@@ -281,6 +284,21 @@ function tickParallelConstraints(constraints, points, lines, circles, windowTran
       c.q2.x = qMid.x + (Math.cos(rot2) * (c.q2.x-qMid.x) - Math.sin(rot2) * (c.q2.y-qMid.y));
       c.q2.y = qMid.y + (Math.sin(rot2) * (c.q2.x-qMid.x) + Math.cos(rot2) * (c.q2.y-qMid.y));
 
+      //manually force it to stay the same length lol
+      var pDist = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var qDist = dist(c.q1.x, c.q1.y, c.q2.x, c.q2.y);
+      var pCenterX = 0.5*c.p1.x + 0.5*c.p2.x;
+      var pCenterY = 0.5*c.p1.y + 0.5*c.p2.y;
+      var qCenterX = 0.5*c.q1.x + 0.5*c.q2.x;
+      var qCenterY = 0.5*c.q1.y + 0.5*c.q2.y;
+      c.p1.x = pCenterX + pTargetLength/pDist*(c.p1.x - pCenterX);
+      c.p1.y = pCenterY + pTargetLength/pDist*(c.p1.y - pCenterY);
+      c.p2.x = pCenterX + pTargetLength/pDist*(c.p2.x - pCenterX);
+      c.p2.y = pCenterY + pTargetLength/pDist*(c.p2.y - pCenterY);
+      c.q1.x = qCenterX + qTargetLength/qDist*(c.q1.x - qCenterX);
+      c.q1.y = qCenterY + qTargetLength/qDist*(c.q1.y - qCenterY);
+      c.q2.x = qCenterX + qTargetLength/qDist*(c.q2.x - qCenterX);
+      c.q2.y = qCenterY + qTargetLength/qDist*(c.q2.y - qCenterY);
     }
   }
 }
@@ -321,10 +339,22 @@ function tickHorizontalConstraints(constraints, points, lines, circles, windowTr
       var pMid = new Point(0.5*(c.p1.x+c.p2.x), 0.5*(c.p1.y+c.p2.y));
       var qMid = new Point(0.5*(c.q1.x+c.q2.x), 0.5*(c.q1.y+c.q2.y));
 
+      var pTargetLength = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var qTargetLength = dist(c.q1.x, c.q1.y, c.q2.x, c.q2.y);
+
       c.p1.x = pMid.x + (Math.cos(rot1) * (c.p1.x-pMid.x) - Math.sin(rot1) * (c.p1.y-pMid.y));
       c.p1.y = pMid.y + (Math.sin(rot1) * (c.p1.x-pMid.x) + Math.cos(rot1) * (c.p1.y-pMid.y));
       c.p2.x = pMid.x + (Math.cos(rot1) * (c.p2.x-pMid.x) - Math.sin(rot1) * (c.p2.y-pMid.y));
       c.p2.y = pMid.y + (Math.sin(rot1) * (c.p2.x-pMid.x) + Math.cos(rot1) * (c.p2.y-pMid.y));
+
+      //manually force it to stay the same length lol
+      var pDist = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var pCenterX = 0.5*c.p1.x + 0.5*c.p2.x;
+      var pCenterY = 0.5*c.p1.y + 0.5*c.p2.y;
+      c.p1.x = pCenterX + pTargetLength/pDist*(c.p1.x - pCenterX);
+      c.p1.y = pCenterY + pTargetLength/pDist*(c.p1.y - pCenterY);
+      c.p2.x = pCenterX + pTargetLength/pDist*(c.p2.x - pCenterX);
+      c.p2.y = pCenterY + pTargetLength/pDist*(c.p2.y - pCenterY);
 
     }
   }
@@ -363,10 +393,21 @@ function tickVerticalConstraints(constraints, points, lines, circles, windowTran
       var pMid = new Point(0.5*(c.p1.x+c.p2.x), 0.5*(c.p1.y+c.p2.y));
       var qMid = new Point(0.5*(c.q1.x+c.q2.x), 0.5*(c.q1.y+c.q2.y));
 
+      var pTargetLength = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+
       c.p1.x = pMid.x + (Math.cos(rot1) * (c.p1.x-pMid.x) - Math.sin(rot1) * (c.p1.y-pMid.y));
       c.p1.y = pMid.y + (Math.sin(rot1) * (c.p1.x-pMid.x) + Math.cos(rot1) * (c.p1.y-pMid.y));
       c.p2.x = pMid.x + (Math.cos(rot1) * (c.p2.x-pMid.x) - Math.sin(rot1) * (c.p2.y-pMid.y));
       c.p2.y = pMid.y + (Math.sin(rot1) * (c.p2.x-pMid.x) + Math.cos(rot1) * (c.p2.y-pMid.y));
+
+      //manually force it to stay the same length lol
+      var pDist = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+      var pCenterX = 0.5*c.p1.x + 0.5*c.p2.x;
+      var pCenterY = 0.5*c.p1.y + 0.5*c.p2.y;
+      c.p1.x = pCenterX + pTargetLength/pDist*(c.p1.x - pCenterX);
+      c.p1.y = pCenterY + pTargetLength/pDist*(c.p1.y - pCenterY);
+      c.p2.x = pCenterX + pTargetLength/pDist*(c.p2.x - pCenterX);
+      c.p2.y = pCenterY + pTargetLength/pDist*(c.p2.y - pCenterY);
 
     }
   }
