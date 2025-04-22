@@ -441,7 +441,7 @@ class Line {
   }
 }
 class Circle {
-  constructor(_center, _r) {
+  constructor(_center, _r, _direction) {
     this.r = _r;
     this.radSet = false;
     this.isFinished = false;
@@ -449,6 +449,7 @@ class Circle {
     this.points = [];
     this.endpoints = [];
     this.constraints = [];
+    this.direction = _direction;
   }
   draw(ctx) {
     // Start a new Path
@@ -471,7 +472,11 @@ class Circle {
       if (distToPix(dist(this.endpoints[0].x, this.endpoints[0].y, this.endpoints[1].x, this.endpoints[1].y), windowTransform) < pointSnapRadius) {
         ctx.arc(_x, _y, _r, 0, 2*Math.PI);  
       } else {
-        ctx.arc(_x, _y, _r, d1, d2);
+        if (this.direction === "CCW") {
+          ctx.arc(_x, _y, _r, d1, d2);
+        } else {
+          ctx.arc(_x, _y, _r, d2, d1);
+        }
       }
 
       // Draw the Path
@@ -858,7 +863,7 @@ canvas.addEventListener("keydown", function(event) {
   coords = pixToCoord(raw_mx, raw_my, windowTransform);
   x = coords[0];
   y = coords[1];
-  if (key==="c") {
+  if (key==="c" || key === "x") {
     drawCircle = true;
     drawLine = false;
     var p;
@@ -882,7 +887,12 @@ canvas.addEventListener("keydown", function(event) {
       p = new Point(x, y);
       points.push(p);
     }
-    c = new Circle(p, 0);
+    var c;
+    if (key==="c") {
+      c = new Circle(p, 0, "CCW");
+    } else {
+      c = new Circle(p, 0, "CW");
+    }
     circles.push(c);
     isDrawing = true;
   }
