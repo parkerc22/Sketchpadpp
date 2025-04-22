@@ -542,11 +542,14 @@ class DistanceConstraint {
 class EqualLengthConstraint {
   //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
   // second pair of points.
-  constructor(p1, p2, q1, q2) {
+  constructor(p1, p2, q1, q2, l1, l2) {
     this.p1 = p1;
     this.p2 = p2;
     this.q1 = q1;
     this.q2 = q2;
+    //lines are just object references that make it easier to delete constraints when components are deleted
+    this.l1 = l1;
+    this.l2 = l2;
     this.type = "EqualLength";
   }
 
@@ -568,11 +571,13 @@ class EqualLengthConstraint {
 class ParallelConstraint {
   //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
   // second pair of points.
-  constructor(p1, p2, q1, q2) {
+  constructor(p1, p2, q1, q2, l1, l2) {
     this.p1 = p1;
     this.p2 = p2;
     this.q1 = q1;
     this.q2 = q2;
+    this.l1 = l1;
+    this.l2 = l2;
     this.type = "Parallel";
   }
 
@@ -594,9 +599,10 @@ class ParallelConstraint {
 class HorizontalConstraint {
   //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
   // second pair of points.
-  constructor(p1, p2) {
+  constructor(p1, p2, l) {
     this.p1 = p1;
     this.p2 = p2;
+    this.l = l;
     this.q1 = new Point(-10, 0);
     this.q2 = new Point(10, 0);
     this.type = "Horizontal";
@@ -615,9 +621,10 @@ class HorizontalConstraint {
 class VerticalConstraint {
   //this constraint enforces that the distance between the first pair of points is the same as the distance between the 
   // second pair of points.
-  constructor(p1, p2) {
+  constructor(p1, p2, l) {
     this.p1 = p1;
     this.p2 = p2;
+    this.l = l;
     this.q1 = new Point(0, -10);
     this.q2 = new Point(0, 10);
     this.type = "Vertical";
@@ -694,6 +701,7 @@ canvas.addEventListener("click", function(event) {
       //otherwise, complete the equality constraint with the line we selected
       constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
+      constraints[constraints.length-1].l2 = snappedPix[1];
       creatingEqualityConstraint = false;
     }
   } else if (creatingParallelConstraint) {
@@ -704,6 +712,7 @@ canvas.addEventListener("click", function(event) {
       //otherwise, complete the parallel constraint with the line we selected
       constraints[constraints.length-1].q1 = snappedPix[1].endpoints[0];
       constraints[constraints.length-1].q2 = snappedPix[1].endpoints[1];
+      constraints[constraints.length-1].l2 = snappedPix[1];
       creatingParallelConstraint = false;
     }
   }
@@ -993,7 +1002,7 @@ canvas.addEventListener("keydown", function(event) {
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the first two points for the equality constraint
-      constraints.push(new EqualLengthConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]))
+      constraints.push(new EqualLengthConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1], snappedPix[1]))
       creatingEqualityConstraint = true;
     }
   }
@@ -1004,7 +1013,7 @@ canvas.addEventListener("keydown", function(event) {
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the first two points for the equality constraint
-      constraints.push(new ParallelConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]))
+      constraints.push(new ParallelConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1], snappedPix[1]))
       creatingParallelConstraint = true;
     }
   }
@@ -1014,7 +1023,7 @@ canvas.addEventListener("keydown", function(event) {
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the two points for the horizontal constraint
-      constraints.push(new HorizontalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]));
+      constraints.push(new HorizontalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1]));
     }
   }
 
@@ -1023,7 +1032,7 @@ canvas.addEventListener("keydown", function(event) {
     //if not currently snapped to a line, do nothing
     if (snappedPix[1] != null) {
       //use the endpoints of this line as the two points for the horizontal constraint
-      constraints.push(new VerticalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1]));
+      constraints.push(new VerticalConstraint(snappedPix[1].endpoints[0], snappedPix[1].endpoints[1], snappedPix[1]));
     }
   }
 
@@ -1050,6 +1059,11 @@ canvas.addEventListener("keydown", function(event) {
           idxs.push(l);
         }
       }
+
+      //find any constraints incident on those lines (this is where recursion would have been helpful lol)
+
+
+      //then remove the original lines
       for (i = 0; i < idxs.length; i++) {
         lines.splice(idxs[i], 1);
       }
@@ -1064,6 +1078,7 @@ canvas.addEventListener("keydown", function(event) {
       for (i = 0; i < idxs.length; i++) {
         circles.splice(idxs[i], 1);
       }
+
     } else if (snappedPix[1] != null) {
       //delete the old one from the lines[] array
       idx = -1;
@@ -1074,6 +1089,24 @@ canvas.addEventListener("keydown", function(event) {
       }
       if (idx != -1) {
         lines.splice(idx, 1);
+      }
+      idx = []
+      for (c = constraints.length-1; c>= 0; c--) {
+        //delete all horizontal and vertical constraints using that line
+        if (constraints[c].type === "Horizontal" || constraints[c].type === "Vertical") {
+          if (constraints[c].l === snappedPix[1]) {
+            idx.push(c);
+          }
+        }
+        //Also, delete all parallel and equal length constraints using that line
+        else if (constraints[c].type === "EqualLength" || constraints[c].type === "Parallel") {
+          if (constraints[c].l1 === snappedPix[1] || constraints[c].l2 === snappedPix[2]) {
+            idx.push(c);
+          }
+        }
+      }
+      for (i = 0; i < idx.length; i++) {
+        constraints.splice(idx[i], 1);
       }
     } else if (snappedPix[2] != null) {
       //delete the old one from the circles[] array
