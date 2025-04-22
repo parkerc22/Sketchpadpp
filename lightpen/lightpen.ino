@@ -15,6 +15,7 @@ bool reset = true;
 const int buttonPin = 5;
 const int rotaryAPin = 2;
 const int rotaryBPin = 3;
+const int rotaryPressPin = 4;
 
 const float sensorRate = 104.00;
 
@@ -45,6 +46,7 @@ void setup()
         pinMode(buttonPin, INPUT);
         pinMode(rotaryAPin, INPUT);
         pinMode(rotaryBPin, INPUT);
+        pinMode(rotaryPressPin, INPUT);
 
         prevA = digitalRead(rotaryAPin);
         prevB = digitalRead(rotaryBPin);
@@ -56,7 +58,7 @@ void setup()
 
 void loop()
 {
-        int buttonState, A, B;
+        int buttonState, A, B, headState;
 
         float x, y, ax, ay, az, gx, gy, gz;
         double yaw, pitch, roll;
@@ -78,7 +80,12 @@ void loop()
         if (abs(gx) > flick_thresh*1.5 || abs(gy) > flick_thresh || abs(gz) > flick_thresh){
                 Serial.println("F");
                 reset = 1;
-                delay(500);
+                delay(10);
+        }
+        headState = digitalRead(rotaryPressPin);
+        if (headState != HIGH){
+                Serial.println("F");
+                delay(10);
         }
         buttonState = digitalRead(buttonPin);
         if (buttonState != HIGH) {
