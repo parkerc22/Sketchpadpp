@@ -1,20 +1,9 @@
 //-----TO-DO----------------------
 //fix parallel constraints bugs
-//Add CCW vs CW circle functionality
 //moving circle center should try to keep endpoints but change radii
-
-//Plan: Create "DISTANCE" constraint. The endpoint of an arc will be constrained to match the distance of the initial endpoint.
-//Enforce this distance constraint even while moving points!!!! 
-
-// To enforce equal line segment length constraints, move both ends of each line segment 2/3 of the way towards the median.
-// Then, to enforce distance constraints, iterate through them in any order and radially move each floating point 2/3 of the way to the anchors target
-
 //points are INDEPENDENT. lines and circles are DEPENDENT on their endpoints.
-
-//window.alert("click in the box");
 const canvas = document.getElementById("myCanvas");
 canvas.style.cursor = "crosshair";
-
 const ctx = canvas.getContext("2d");
 ctx.fillStyle = "white";
 ctx.strokeStyle = "white";
@@ -27,8 +16,8 @@ moving = false;
 enforceDistanceWhileMoving = true;
 enforceDistanceWhileClicking = true;
 enforceEqualityWhileMoving = true;
-enforceParallelWhileMoving = true;
-enforceAllWhileMoving = true;
+enforceParallelWhileMoving = false;
+enforceAllWhileMoving = false;
 creatingEqualityConstraint = false;
 creatingParallelConstraint = false;
 drawConstraints = false;
@@ -99,13 +88,11 @@ function drawDisplay(ctx, canvas, points, lines, circles, constraints, drawConst
       constraints[j].draw(ctx);
     }
   }
-
 }
 
 //not currently using the function, only snaps to points at the moment, update it later
 function snapCoords(x, y, points, lines, circles, windowTransform, snapRadius) {
   var output = [null, null, null];
-
   for (p = 0; p < points.length; p++) {
     pt = points[p]
     if (distToPix(dist(x, y, pt.x, pt.y), windowTransform) < snapRadius && !points[p].beingMoved) {
@@ -513,7 +500,7 @@ class Circle {
       }
 
       ctx.beginPath();
-      if (distToPix(dist(this.endpoints[0].x, this.endpoints[0].y, this.endpoints[1].x, this.endpoints[1].y), windowTransform) < pointSnapRadius) {
+      if ((!this.isFinished && distToPix(dist(this.endpoints[0].x, this.endpoints[0].y, this.endpoints[1].x, this.endpoints[1].y), windowTransform) < pointSnapRadius) || this.endpoints[0] === this.endpoints[1]) {
         ctx.arc(_x, _y, _r, 0, 2*Math.PI);  
       } else {
         if (this.direction === "CCW") {
